@@ -1,37 +1,23 @@
 // Integration barrel: the single place that wires every tile module into the panel.
 // Each tile module exports `register(registerTile)`; this file imports and calls them.
 //
-// FOUNDATION STATE: until the real tile modules land, this registers placeholder
-// tiles driven by mock data so the panel runs standalone. The integration step
-// replaces the placeholder loop below with real imports + register() calls.
-import { mockTile } from "../mock.js";
-
-const PLACEHOLDER_IDS = [
-  "clock",
-  "date",
-  "memory",
-  "storage",
-  "wifi",
-  "internet",
-  "printers",
-  "volume",
-  "weather",
-];
+// The clock module registers BOTH the "clock" and "date" tiles.
+import { register as registerClock } from "./clock.js";
+import { register as registerMemory } from "./memory.js";
+import { register as registerStorage } from "./storage.js";
+import { register as registerWifi } from "./wifi.js";
+import { register as registerInternet } from "./internet.js";
+import { register as registerPrinters } from "./printers.js";
+import { register as registerVolume } from "./volume.js";
+import { register as registerWeather } from "./weather.js";
 
 export async function registerAll(registerTile) {
-  for (const id of PLACEHOLDER_IDS) {
-    registerTile({
-      id,
-      title: id,
-      intervalMs: 0,
-      fetch: () => mockTile(id),
-      render: (el, d) => {
-        el.innerHTML =
-          `<div class="tile-title">${id}</div>` +
-          `<pre class="tile-sub" style="white-space:pre-wrap">${JSON.stringify(
-            d
-          )}</pre>`;
-      },
-    });
-  }
+  await registerClock(registerTile);
+  registerMemory(registerTile);
+  registerStorage(registerTile);
+  registerWifi(registerTile);
+  registerInternet(registerTile);
+  registerPrinters(registerTile);
+  registerVolume(registerTile);
+  registerWeather(registerTile);
 }

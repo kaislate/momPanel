@@ -151,6 +151,21 @@ body {
   width: 320px;
   text-align: center;
 }
+/* weather tile */
+.wx-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.wx-icon {
+  flex: none;
+}
+.wx-change {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+}
+
 .modal-card input {
   width: 100%;
   margin: 14px 0;

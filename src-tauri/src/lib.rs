@@ -57,10 +57,46 @@ fn set_config(cfg: serde_json::Value) -> Result<AppConfig, String> {
     Ok(current)
 }
 
+// Check GitHub Releases for a newer signed version and install it silently, then
+// restart. Any failure (offline, no update, endpoint unreachable) is non-fatal.
+async fn check_for_update(app: tauri::AppHandle) {
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = match app.updater() {
+        Ok(u) => u,
+        Err(_) => return,
+    };
+    if let Ok(Some(update)) = updater.check().await {
+        if update
+            .download_and_install(|_, _| {}, || {})
+            .await
+            .is_ok()
+        {
+            app.restart();
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        // Autostart on login. LaunchAgent is the macOS strategy; on Linux this
+        // writes a ~/.config/autostart entry, on Windows a registry Run key.
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
+        .setup(|app| {
+            // Register autostart on first run (idempotent).
+            use tauri_plugin_autostart::ManagerExt;
+            let _ = app.autolaunch().enable();
+
+            // Check for updates in the background so launch is never blocked.
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(check_for_update(handle));
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             read_tile,
             get_config,

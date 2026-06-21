@@ -19,7 +19,7 @@ export const HELP = {
   },
   storage: {
     title: "Storage",
-    text: "This shows how full your storage is. Storage is where your files, photos, and programs are kept — a higher percentage means less free room left.",
+    text: "This shows how full your storage is — the space where your files, photos, and programs are kept for good. Tap the circle to switch between how full it is and how much room is still free.",
   },
   wifi: {
     title: "Wi-Fi",

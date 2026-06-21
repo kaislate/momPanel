@@ -33,6 +33,7 @@ export async function getConfig() {
       ui_scale: "normal",
       hide_controls: false,
       auto_update: true,
+      hide_help: false,
     };
   }
 }

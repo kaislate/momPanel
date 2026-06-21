@@ -112,6 +112,56 @@ body {
   color: #fff;
 }
 
+/* Spin + poof when hiding the dots. */
+@keyframes help-poof {
+  0% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+  55% {
+    transform: scale(1.7) rotate(200deg);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(0) rotate(420deg);
+    opacity: 0;
+  }
+}
+.tile-help--poof {
+  animation: help-poof 0.45s ease forwards;
+  pointer-events: none;
+}
+
+/* Pop back in, then pulse-glow a few times when showing the dots. */
+@keyframes help-pop-in {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+@keyframes help-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(91, 140, 255, 0);
+  }
+  50% {
+    box-shadow: 0 0 12px 3px rgba(91, 140, 255, 0.9);
+  }
+}
+.tile-help--appear {
+  animation: help-pop-in 0.35s cubic-bezier(0.2, 0.9, 0.2, 1.2),
+    help-glow 0.55s ease 0.35s 3;
+}
+
+/* the "?" toggle in the control pill; dimmed when the dots are off */
+.scale-btn--help.is-off {
+  opacity: 0.5;
+}
+
 /* Shared tile structure: graphic fills the middle and centers; foot sits at bottom. */
 .tile-graphic {
   flex: 1 1 auto;
@@ -358,12 +408,24 @@ body {
   height: 100%;
   max-height: none;
 }
+.storage-gauge {
+  cursor: pointer;
+  border-radius: 50%;
+  transition: transform 0.15s ease;
+}
+.storage-gauge:hover {
+  transform: scale(1.04);
+}
 
 /* Eye toggle: hide every button and link in the dashboard for a clean info-only
    view. Scoped to #grid so the About overlay's own buttons are never hidden. */
 body.controls-hidden #grid .tile-btn,
-body.controls-hidden #grid .wx-change,
-body.controls-hidden #grid .tile-help {
+body.controls-hidden #grid .wx-change {
+  display: none;
+}
+
+/* The "?" toggle controls the help dots independently of the eye toggle. */
+body.help-hidden .tile-help {
   display: none;
 }
 
@@ -604,6 +666,10 @@ body.controls-hidden #grid .tile-help {
     animation: none;
   }
   .modal-backdrop {
+    animation: none;
+  }
+  .tile-help--poof,
+  .tile-help--appear {
     animation: none;
   }
 }

@@ -47,20 +47,51 @@ export function applyHidden(hidden) {
   return !!hidden;
 }
 
+// Set help-dot visibility with NO animation (used on boot to avoid a flash).
+function applyHelpHidden(hidden) {
+  document.body.classList.toggle("help-hidden", !!hidden);
+}
+
+// Hide the "?" dots with a spin-and-poof, then remove them.
+function poofHelpDots() {
+  const dots = document.querySelectorAll(".tile-help");
+  dots.forEach((d) => {
+    d.classList.remove("tile-help--appear");
+    d.classList.add("tile-help--poof");
+  });
+  setTimeout(() => {
+    document.body.classList.add("help-hidden");
+    dots.forEach((d) => d.classList.remove("tile-help--poof"));
+  }, 450);
+}
+
+// Show the "?" dots: pop them back in and pulse-glow a few times.
+function popHelpDots() {
+  document.body.classList.remove("help-hidden");
+  document.querySelectorAll(".tile-help").forEach((d) => {
+    d.classList.remove("tile-help--poof", "tile-help--appear");
+    void d.offsetWidth; // restart the animation
+    d.classList.add("tile-help--appear");
+  });
+}
+
 // Read saved chrome state and apply it before tiles render (avoids a flash).
 export async function initChrome() {
   let scale = "normal";
   let hidden = false;
+  let helpHidden = false;
   try {
     const cfg = await getConfig();
     scale = clampScale(cfg.ui_scale);
     hidden = !!cfg.hide_controls;
+    helpHidden = !!cfg.hide_help;
   } catch {
     /* defaults */
   }
   applyScale(scale);
   applyHidden(hidden);
-  return { scale, hidden };
+  applyHelpHidden(helpHidden);
+  return { scale, hidden, helpHidden };
 }
 
 const EYE_OPEN =
@@ -73,21 +104,33 @@ const EYE_OFF =
   `<path d="M2 12s3.5-7 10-7c2 0 3.8.6 5.3 1.5M22 12s-3.5 7-10 7c-2 0-3.8-.6-5.3-1.5"/>` +
   `<path d="M3 3l18 18"/></svg>`;
 
-// Render the eye + A-/A+ pill and wire the behaviors.
-export function mountControls({ scale, hidden }) {
+// Render the i / ? / eye / A-/A+ pill and wire the behaviors.
+export function mountControls({ scale, hidden, helpHidden }) {
   let cur = clampScale(scale);
   let isHidden = !!hidden;
+  let helpOff = !!helpHidden;
 
   const wrap = document.createElement("div");
   wrap.className = "scale-control";
   wrap.innerHTML =
     `<button type="button" class="scale-btn scale-btn--info" data-info aria-label="About momPanel">i</button>` +
+    `<button type="button" class="scale-btn scale-btn--help" data-help-toggle aria-label="Show or hide the help dots">?</button>` +
     `<button type="button" class="scale-btn" data-eye aria-label="Hide or show buttons"></button>` +
     `<button type="button" class="scale-btn" data-step="-1" aria-label="Make text smaller">A&minus;</button>` +
     `<button type="button" class="scale-btn" data-step="1" aria-label="Make text bigger">A+</button>`;
   document.body.appendChild(wrap);
 
   wrap.querySelector("[data-info]").addEventListener("click", () => openInfo());
+
+  const helpBtn = wrap.querySelector("[data-help-toggle]");
+  helpBtn.classList.toggle("is-off", helpOff);
+  helpBtn.addEventListener("click", () => {
+    helpOff = !helpOff;
+    helpBtn.classList.toggle("is-off", helpOff);
+    if (helpOff) poofHelpDots();
+    else popHelpDots();
+    setConfig({ hide_help: helpOff });
+  });
 
   const eyeBtn = wrap.querySelector("[data-eye]");
   const paintEye = () => {

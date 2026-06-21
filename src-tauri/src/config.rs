@@ -30,6 +30,9 @@ pub struct AppConfig {
     /// Automatically check for and install updates on launch (on by default).
     #[serde(default = "default_true")]
     pub auto_update: bool,
+    /// Hide the per-tile "?" help dots when true (they are shown by default).
+    #[serde(default)]
+    pub hide_help: bool,
 }
 
 impl Default for AppConfig {
@@ -40,6 +43,7 @@ impl Default for AppConfig {
             ui_scale: default_scale(),
             hide_controls: false,
             auto_update: true,
+            hide_help: false,
         }
     }
 }

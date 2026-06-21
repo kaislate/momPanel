@@ -95,6 +95,9 @@ fn set_config(cfg: serde_json::Value) -> Result<AppConfig, String> {
     if let Some(b) = cfg.get("auto_update").and_then(|v| v.as_bool()) {
         current.auto_update = b;
     }
+    if let Some(b) = cfg.get("hide_help").and_then(|v| v.as_bool()) {
+        current.hide_help = b;
+    }
     config::save(&current)?;
     Ok(current)
 }

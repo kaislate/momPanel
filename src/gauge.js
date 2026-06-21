@@ -8,13 +8,15 @@ export function gaugeColor(percent) {
   return "#5bd6a0";
 }
 
-// percent: 0-100, label: big center text, sub: small caption under it.
-export function arcGauge(percent, label, sub = "") {
+// percent: 0-100 (ring fill), label: big center text, sub: small caption under it.
+// colorPercent (optional): basis for the green/amber/red color, when it should differ
+// from the fill — e.g. storage showing "% free" but colored by how full it is.
+export function arcGauge(percent, label, sub = "", colorPercent = percent) {
   const p = Math.max(0, Math.min(100, percent));
   const r = 42;
   const circ = 2 * Math.PI * r;
   const dash = (p / 100) * circ;
-  const color = gaugeColor(p);
+  const color = gaugeColor(colorPercent);
   return `
   <svg class="gauge" viewBox="0 0 100 100" role="img">
     <circle cx="50" cy="50" r="${r}" fill="none" stroke="#2a3146" stroke-width="9" />

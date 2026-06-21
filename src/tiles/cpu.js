@@ -15,6 +15,16 @@ export function register(registerTile) {
     title: "CPU",
     intervalMs: 3000,
     render(el, data) {
+      if (data && data.state === "loading") {
+        el.innerHTML = tile({
+          title: "CPU",
+          graphic:
+            `<div class="gauge-row">${cpuIcon()}` +
+            `<div class="gauge-fixed">${arcGauge(0, "Loading", "")}</div></div>`,
+          foot: `<div class="tile-status">Measuring…</div>`,
+        });
+        return;
+      }
       if (!data || data.state !== "ok") {
         el.innerHTML = tile({
           title: "CPU",

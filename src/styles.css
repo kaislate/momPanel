@@ -524,6 +524,10 @@ body.help-hidden .tile-help {
   color: var(--ink-dim);
   font-size: 0.95rem;
 }
+.info-os {
+  color: var(--ink-dim);
+  font-size: 0.85rem;
+}
 .info-status {
   min-height: 1.2em;
   color: var(--accent);

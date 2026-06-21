@@ -64,6 +64,14 @@ export async function appVersion() {
   }
 }
 
+export async function osInfo() {
+  try {
+    return await invoke("os_info");
+  } catch {
+    return "";
+  }
+}
+
 export async function openGithub() {
   try {
     return await invoke("open_github");

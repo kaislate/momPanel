@@ -111,6 +111,17 @@ fn app_version(app: tauri::AppHandle) -> String {
     app.package_info().version.to_string()
 }
 
+// A friendly OS label for the About panel (e.g. "Windows 11 Pro", "Linux Zorin OS 17").
+#[tauri::command]
+fn os_info() -> String {
+    sysinfo::System::long_os_version()
+        .or_else(sysinfo::System::name)
+        .unwrap_or_else(|| {
+            let os = std::env::consts::OS;
+            os[..1].to_uppercase() + &os[1..]
+        })
+}
+
 // Open the project's GitHub page in the user's default browser. Fixed URL (no
 // arbitrary input), so there is nothing to inject.
 #[tauri::command]
@@ -223,6 +234,7 @@ pub fn run() {
             set_config,
             read_weather,
             app_version,
+            os_info,
             open_github,
             check_updates,
             get_autostart,

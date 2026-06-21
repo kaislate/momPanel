@@ -1,6 +1,12 @@
 // Plain-English, kind "what's new" notes shown inside the app after an update, keyed
 // by version. (The GitHub release notes in CHANGELOG.md can be more technical.)
 export const CHANGELOG = {
+  "0.3.4": {
+    changes: [
+      "📶 Wi-Fi and 🖨️ printers now work on Windows too, not just Linux.",
+      "💻 The About window now shows which system you're running on.",
+    ],
+  },
   "0.3.3": {
     changes: [
       "✨ momPanel now shows a friendly note like this whenever it updates, so you always know what changed.",

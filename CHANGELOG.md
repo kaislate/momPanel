@@ -2,6 +2,14 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.3.4 — 2026-06-21
+
+### Added
+- **Windows Wi-Fi collector** (`netsh wlan show interfaces`) and **Windows printers
+  collector** (PowerShell / `Win32_Printer`) — Wi-Fi and printers now report on Windows,
+  not just Linux. Subprocesses use `CREATE_NO_WINDOW` to avoid console flashes.
+- `os_info` command + a "Running on …" line in the About panel (runtime OS detection).
+
 ## 0.3.3 — 2026-06-21
 
 ### Added

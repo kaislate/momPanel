@@ -2,6 +2,7 @@
 // and an auto-update toggle (on by default). Rendered into #modal-root.
 import {
   appVersion,
+  osInfo,
   openGithub,
   checkUpdates,
   getConfig,
@@ -16,8 +17,9 @@ export async function openInfo() {
   const root = document.getElementById("modal-root");
   if (!root) return;
 
-  const [version, cfg, autostart] = await Promise.all([
+  const [version, os, cfg, autostart] = await Promise.all([
     appVersion(),
+    osInfo(),
     getConfig(),
     getAutostart(),
   ]);
@@ -27,6 +29,7 @@ export async function openInfo() {
     `<div class="info-logo">${logoSvg(96)}</div>` +
     `<div class="info-name">momPanel</div>` +
     `<div class="info-version">Version ${version || "—"}</div>` +
+    `<div class="info-os">Running on ${os || "this computer"}</div>` +
     `<div class="info-status" aria-live="polite"></div>` +
     `<button class="tile-btn info-btn" data-action="updates">Check for updates</button>` +
     `<button class="tile-btn info-btn" data-action="whatsnew">What's New</button>` +

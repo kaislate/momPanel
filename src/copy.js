@@ -16,6 +16,13 @@ export function memoryMessage(usedPercent) {
   return "Very busy";
 }
 
+// CPU activity, keyed on percent used.
+export function cpuMessage(usedPercent) {
+  if (usedPercent < 40) return "Taking it easy";
+  if (usedPercent < 80) return "Working";
+  return "Working hard";
+}
+
 // Friendly internet line. `online` is a boolean.
 export function internetMessage(online) {
   return online

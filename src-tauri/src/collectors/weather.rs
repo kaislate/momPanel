@@ -10,6 +10,14 @@ use serde::Serialize;
 use std::time::Duration;
 
 #[derive(Serialize)]
+pub struct DayForecast {
+    pub date: String, // YYYY-MM-DD (local tz); frontend formats the weekday
+    pub code: u8,
+    pub high_c: f32,
+    pub low_c: f32,
+}
+
+#[derive(Serialize)]
 #[serde(tag = "state", rename_all = "lowercase")]
 pub enum WeatherData {
     Ok {
@@ -18,6 +26,7 @@ pub enum WeatherData {
         high_c: f32,
         low_c: f32,
         place: String,
+        days: Vec<DayForecast>,
     },
     Unavailable,
 }
@@ -72,7 +81,8 @@ fn try_read(zip: &str) -> Option<WeatherData> {
     let fc_url = format!(
         "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}\
          &current=temperature_2m,weather_code\
-         &daily=temperature_2m_max,temperature_2m_min&timezone=auto",
+         &daily=temperature_2m_max,temperature_2m_min,weather_code\
+         &forecast_days=5&timezone=auto",
         lat, lon
     );
     let fc: serde_json::Value = client.get(&fc_url).send().ok()?.json().ok()?;
@@ -82,8 +92,24 @@ fn try_read(zip: &str) -> Option<WeatherData> {
     let code = current.get("weather_code")?.as_u64()? as u8;
 
     let daily = fc.get("daily")?;
-    let high_c = daily.get("temperature_2m_max")?.get(0)?.as_f64()? as f32;
-    let low_c = daily.get("temperature_2m_min")?.get(0)?.as_f64()? as f32;
+    let times = daily.get("time")?.as_array()?;
+    let maxs = daily.get("temperature_2m_max")?.as_array()?;
+    let mins = daily.get("temperature_2m_min")?.as_array()?;
+    let codes = daily.get("weather_code")?.as_array()?;
+
+    let high_c = maxs.first()?.as_f64()? as f32;
+    let low_c = mins.first()?.as_f64()? as f32;
+
+    let n = times.len().min(5);
+    let mut days = Vec::with_capacity(n);
+    for i in 0..n {
+        days.push(DayForecast {
+            date: times[i].as_str().unwrap_or("").to_string(),
+            code: codes.get(i).and_then(|v| v.as_u64()).unwrap_or(0) as u8,
+            high_c: maxs.get(i).and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+            low_c: mins.get(i).and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+        });
+    }
 
     Some(WeatherData::Ok {
         temp_c,
@@ -91,6 +117,7 @@ fn try_read(zip: &str) -> Option<WeatherData> {
         high_c,
         low_c,
         place,
+        days,
     })
 }
 

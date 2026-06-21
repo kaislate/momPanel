@@ -13,6 +13,7 @@
 //! The integration step adds one `pub mod <name>;` line here per collector and one
 //! match arm in `read_tile` (lib.rs).
 
+pub mod cpu;
 pub mod memory;
 pub mod storage;
 pub mod wifi;

@@ -17,6 +17,7 @@ async fn read_tile(name: String) -> serde_json::Value {
 
 fn read_tile_sync(name: &str) -> serde_json::Value {
     match name {
+        "cpu" => serde_json::to_value(collectors::cpu::read()).unwrap_or_else(|_| unavail()),
         "memory" => serde_json::to_value(collectors::memory::read()).unwrap_or_else(|_| unavail()),
         "storage" => {
             serde_json::to_value(collectors::storage::read()).unwrap_or_else(|_| unavail())

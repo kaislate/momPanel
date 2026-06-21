@@ -16,8 +16,8 @@ function condition(code) {
   return "cloudy";
 }
 
-function icon(cond) {
-  const open = `<svg class="wx-icon" viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" role="img">`;
+function icon(cond, size = 56) {
+  const open = `<svg class="wx-icon" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" role="img">`;
   const cloud = `<path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6 1.3A3.5 3.5 0 0 1 16 18z"/>`;
   switch (cond) {
     case "clear":
@@ -37,6 +37,27 @@ function icon(cond) {
 }
 
 const round = (n) => Math.round(Number(n));
+
+// Short weekday from a "YYYY-MM-DD" string, parsed in local time to avoid the UTC
+// off-by-one. The first forecast day is labeled "Today".
+function dayLabel(dateStr, index) {
+  if (index === 0) return "Today";
+  const [y, m, d] = String(dateStr).split("-").map(Number);
+  if (!y || !m || !d) return "";
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short" });
+}
+
+// One column of the 5-day forecast.
+function forecastDay(day, index) {
+  const cond = condition(day.code);
+  return (
+    `<div class="wx-day">` +
+    `<div class="wx-day-name">${dayLabel(day.date, index)}</div>` +
+    `${icon(cond, 28)}` +
+    `<div class="wx-day-temp">${round(day.high_c)}&deg;` +
+    `<span class="wx-day-low">${round(day.low_c)}&deg;</span></div></div>`
+  );
+}
 
 function escapeHtml(s) {
   return String(s).replace(
@@ -74,18 +95,22 @@ export function register(registerTile) {
         return;
       }
       const cond = condition(data.code);
-      el.innerHTML = tile({
-        title: escapeHtml(data.place ?? "Weather"),
-        graphic:
-          `<div class="wx-row">${icon(cond)}` +
-          `<div class="tile-big">${round(data.temp_c)}&deg;</div></div>`,
-        foot:
-          `<div class="tile-status">${weatherWord(cond)}</div>` +
-          `<div class="tile-sub">H ${round(data.high_c)}&deg; &middot; L ${round(
-            data.low_c
-          )}&deg;</div>` +
-          `<a href="#" class="wx-change">change location</a>`,
-      });
+      const days = Array.isArray(data.days) ? data.days : [];
+      // Custom layout for this double-height tile: current conditions on top, the
+      // 5-day forecast row below.
+      el.innerHTML =
+        `<div class="tile-title">${escapeHtml(data.place ?? "Weather")}</div>` +
+        `<div class="wx-current">` +
+        `<div class="wx-row">${icon(cond)}` +
+        `<div class="tile-big">${round(data.temp_c)}&deg;</div></div>` +
+        `<div class="tile-status">${weatherWord(cond)}</div>` +
+        `<div class="tile-sub">H ${round(data.high_c)}&deg; &middot; L ${round(
+          data.low_c
+        )}&deg;</div></div>` +
+        `<div class="wx-forecast">${days
+          .map((d, i) => forecastDay(d, i))
+          .join("")}</div>` +
+        `<a href="#" class="wx-change">change location</a>`;
       wireChangeLink(el);
     },
   });

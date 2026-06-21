@@ -74,14 +74,42 @@ function renderClock(el) {
   });
 }
 
+// A mini calendar for the current month with today highlighted.
+function calendarHtml(now) {
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const firstDow = new Date(y, m, 1).getDay(); // 0 = Sunday
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const today = now.getDate();
+  const monthLabel = now.toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+
+  let cells = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+    .map((d) => `<span class="cal-dow">${d}</span>`)
+    .join("");
+  for (let i = 0; i < firstDow; i++) cells += `<span class="cal-day"></span>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const cls = d === today ? "cal-day cal-today" : "cal-day";
+    cells += `<span class="${cls}">${d}</span>`;
+  }
+  return (
+    `<div class="cal"><div class="cal-title">${monthLabel}</div>` +
+    `<div class="cal-grid">${cells}</div></div>`
+  );
+}
+
 function renderDate(el) {
   const now = new Date();
   const weekday = now.toLocaleDateString(undefined, { weekday: "long" });
-  el.innerHTML = tile({
-    title: "Date",
-    graphic: `<div class="tile-big">${weekday}</div>`,
-    foot: `<div class="tile-sub">${now.toLocaleDateString()}</div>`,
-  });
+  el.innerHTML =
+    `<div class="tile-title">Date</div>` +
+    `<div class="date-row">` +
+    `<div class="date-left"><div class="tile-big">${weekday}</div>` +
+    `<div class="tile-sub">${now.toLocaleDateString()}</div></div>` +
+    calendarHtml(now) +
+    `</div>`;
 }
 
 export async function register(registerTile) {

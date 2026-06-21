@@ -3,6 +3,7 @@
 //
 // The clock module registers BOTH the "clock" and "date" tiles.
 import { register as registerClock } from "./clock.js";
+import { register as registerCpu } from "./cpu.js";
 import { register as registerMemory } from "./memory.js";
 import { register as registerStorage } from "./storage.js";
 import { register as registerWifi } from "./wifi.js";
@@ -13,6 +14,7 @@ import { register as registerWeather } from "./weather.js";
 
 export async function registerAll(registerTile) {
   await registerClock(registerTile);
+  registerCpu(registerTile);
   registerMemory(registerTile);
   registerStorage(registerTile);
   registerWifi(registerTile);

@@ -43,11 +43,27 @@ body {
 .grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: 1fr;
+  grid-template-rows: repeat(3, 1fr);
+  grid-template-areas:
+    "clock date    date     weather"
+    "cpu   memory  storage  weather"
+    "wifi  internet printers volume";
   gap: 1.1rem;
   padding: 1.4rem;
   height: 100vh;
 }
+
+/* Explicit placement: Date is two columns wide, Weather is two rows tall. */
+.tile[data-id="clock"] { grid-area: clock; }
+.tile[data-id="date"] { grid-area: date; }
+.tile[data-id="weather"] { grid-area: weather; }
+.tile[data-id="cpu"] { grid-area: cpu; }
+.tile[data-id="memory"] { grid-area: memory; }
+.tile[data-id="storage"] { grid-area: storage; }
+.tile[data-id="wifi"] { grid-area: wifi; }
+.tile[data-id="internet"] { grid-area: internet; }
+.tile[data-id="printers"] { grid-area: printers; }
+.tile[data-id="volume"] { grid-area: volume; }
 
 .tile {
   background: var(--tile);
@@ -180,6 +196,92 @@ body {
 }
 .ram-stack .device-icon {
   width: 2.9rem;
+}
+/* drawn (line-art) icon in a gauge row, e.g. CPU */
+.gauge-row .svg-icon {
+  width: 3rem;
+  height: 3rem;
+  flex: none;
+  color: var(--ink-dim);
+}
+
+/* Date tile: date on the left, current-month calendar on the right. */
+.date-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.date-left {
+  flex: 1 1 auto;
+}
+.cal {
+  flex: none;
+}
+.cal-title {
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+  text-align: center;
+  margin-bottom: 5px;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1.7rem);
+  gap: 2px;
+}
+.cal-dow {
+  font-size: 0.7rem;
+  color: var(--ink-dim);
+  text-align: center;
+}
+.cal-day {
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 3px 0;
+  border-radius: 6px;
+}
+.cal-today {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Weather (double height): current conditions fill the top, 5-day forecast at bottom. */
+.wx-current {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 0;
+}
+.wx-forecast {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.wx-day {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.wx-day-name {
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+}
+.wx-day-temp {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.wx-day-low {
+  color: var(--ink-dim);
+  font-weight: 400;
+  margin-left: 3px;
 }
 .gauge-fixed {
   width: 7rem;

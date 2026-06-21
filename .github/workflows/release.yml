@@ -39,6 +39,22 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci || npm install
 
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        shell: bash
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          notes=$(awk -v v="$ver" '$0 ~ "^## "v" " {f=1; next} /^## / {f=0} f {print}' CHANGELOG.md)
+          if [ -z "$notes" ]; then notes="Release $GITHUB_REF_NAME."; fi
+          {
+            echo "body<<__EOF__"
+            echo "$notes"
+            echo ""
+            echo "---"
+            echo "Installs and updates automatically from this release. **Linux/Zorin:** download the AppImage (the self-updating bundle). **Windows:** run the \`_x64-setup.exe\`."
+            echo "__EOF__"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build, sign, and publish
         uses: tauri-apps/tauri-action@v0
         env:
@@ -48,6 +64,6 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "momPanel ${{ github.ref_name }}"
-          releaseBody: "Automated release. The app auto-updates from this release."
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           prerelease: false

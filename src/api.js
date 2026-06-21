@@ -34,6 +34,7 @@ export async function getConfig() {
       hide_controls: false,
       auto_update: true,
       hide_help: true,
+      last_seen_version: "",
     };
   }
 }

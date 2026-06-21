@@ -36,6 +36,9 @@ pub struct AppConfig {
     /// One-time flag: whether we've done the "enable autostart on first run" step.
     #[serde(default)]
     pub autostart_initialized: bool,
+    /// The app version we last showed a "what's new" note for (to detect updates).
+    #[serde(default)]
+    pub last_seen_version: String,
 }
 
 impl Default for AppConfig {
@@ -48,6 +51,7 @@ impl Default for AppConfig {
             auto_update: true,
             hide_help: true,
             autostart_initialized: false,
+            last_seen_version: String::new(),
         }
     }
 }

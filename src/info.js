@@ -10,6 +10,7 @@ import {
   setAutostart,
 } from "./api.js";
 import { logoSvg } from "./logo.js";
+import { showWhatsNew } from "./whatsnew.js";
 
 export async function openInfo() {
   const root = document.getElementById("modal-root");
@@ -28,6 +29,7 @@ export async function openInfo() {
     `<div class="info-version">Version ${version || "—"}</div>` +
     `<div class="info-status" aria-live="polite"></div>` +
     `<button class="tile-btn info-btn" data-action="updates">Check for updates</button>` +
+    `<button class="tile-btn info-btn" data-action="whatsnew">What's New</button>` +
     `<button class="tile-btn info-btn" data-action="github">Visit GitHub</button>` +
     `<label class="info-auto"><input type="checkbox" data-startup ${
       autostart ? "checked" : ""
@@ -55,6 +57,9 @@ export async function openInfo() {
   root
     .querySelector('[data-action="github"]')
     .addEventListener("click", () => openGithub());
+  root
+    .querySelector('[data-action="whatsnew"]')
+    .addEventListener("click", () => showWhatsNew(version));
 
   const status = root.querySelector(".info-status");
   root

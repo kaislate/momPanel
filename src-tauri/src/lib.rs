@@ -98,6 +98,9 @@ fn set_config(cfg: serde_json::Value) -> Result<AppConfig, String> {
     if let Some(b) = cfg.get("hide_help").and_then(|v| v.as_bool()) {
         current.hide_help = b;
     }
+    if let Some(s) = cfg.get("last_seen_version").and_then(|v| v.as_str()) {
+        current.last_seen_version = s.to_string();
+    }
     config::save(&current)?;
     Ok(current)
 }

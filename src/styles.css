@@ -559,6 +559,27 @@ body.help-hidden .tile-help {
   background: #2c3450;
 }
 
+/* "What's new" update popup */
+.whatsnew-card {
+  width: 360px;
+  text-align: center;
+}
+.whatsnew-emoji {
+  font-size: 2.4rem;
+  line-height: 1;
+}
+.whatsnew-list {
+  text-align: left;
+  margin: 14px 0 18px;
+  padding-left: 1.1rem;
+  color: var(--ink);
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+.whatsnew-list li {
+  margin-bottom: 8px;
+}
+
 /* Per-tile "what is this?" popup */
 .help-card {
   width: 300px;

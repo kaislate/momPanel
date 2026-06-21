@@ -28,6 +28,8 @@ const FIXTURES = {
       { date: "2026-06-22", code: 3, high_f: 70, low_f: 54, precip_prob: 20 },
       { date: "2026-06-23", code: 0, high_f: 79, low_f: 59, precip_prob: 0 },
       { date: "2026-06-24", code: 95, high_f: 73, low_f: 61, precip_prob: 70 },
+      { date: "2026-06-25", code: 80, high_f: 76, low_f: 58, precip_prob: 40 },
+      { date: "2026-06-26", code: 2, high_f: 78, low_f: 60, precip_prob: 10 },
     ],
   },
 };

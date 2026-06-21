@@ -84,7 +84,7 @@ fn try_read(zip: &str) -> Option<WeatherData> {
         "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}\
          &current=temperature_2m,weather_code\
          &daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max\
-         &forecast_days=5&temperature_unit=fahrenheit&timezone=auto",
+         &forecast_days=7&temperature_unit=fahrenheit&timezone=auto",
         lat, lon
     );
     let fc: serde_json::Value = client.get(&fc_url).send().ok()?.json().ok()?;
@@ -103,7 +103,7 @@ fn try_read(zip: &str) -> Option<WeatherData> {
     let high_f = maxs.first()?.as_f64()? as f32;
     let low_f = mins.first()?.as_f64()? as f32;
 
-    let n = times.len().min(5);
+    let n = times.len().min(7);
     let mut days = Vec::with_capacity(n);
     for i in 0..n {
         days.push(DayForecast {

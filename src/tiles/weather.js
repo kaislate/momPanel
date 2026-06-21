@@ -76,7 +76,7 @@ function forecastDay(day, index) {
   return (
     `<div class="wx-day">` +
     `<div class="wx-day-name">${dayLabel(day.date, index)}</div>` +
-    `${icon(cond, 26)}` +
+    `${icon(cond, 22)}` +
     `<div class="wx-day-desc">${describe(day.code, day.precip_prob ?? 0)}</div>` +
     `<div class="wx-day-temp">${round(day.high_f)}&deg;` +
     `<span class="wx-day-low">${round(day.low_f)}&deg;</span></div></div>`

@@ -31,10 +31,10 @@ export async function openInfo() {
     `<button class="tile-btn info-btn" data-action="github">Visit GitHub</button>` +
     `<label class="info-auto"><input type="checkbox" data-startup ${
       autostart ? "checked" : ""
-    } /> Start automatically when I log in</label>` +
+    } /><span>Start automatically when I log in</span></label>` +
     `<label class="info-auto"><input type="checkbox" data-auto ${
       cfg.auto_update ? "checked" : ""
-    } /> Update automatically</label>` +
+    } /><span>Update automatically</span></label>` +
     `<button class="tile-btn info-close" data-action="close">Close</button>` +
     `</div></div>`;
 

@@ -52,6 +52,12 @@ momPanel shows the things that actually matter — at a glance, in plain languag
 
 <img src="assets/screenshot-dashboard.png" width="840" alt="momPanel dashboard showing clock, calendar, CPU/memory/storage gauges, a 5-day weather forecast, and status tiles" />
 
+<br/><br/>
+
+❓ _Tap any tile's "?" for a plain‑language explanation_
+
+<img src="assets/screenshot-help.png" width="840" alt="The Memory tile's help popup explaining what RAM is in simple terms" />
+
 </div>
 
 ## 🚀 Install

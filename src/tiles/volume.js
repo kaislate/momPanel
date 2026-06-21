@@ -26,7 +26,9 @@ export function register(registerTile) {
     intervalMs: 5000,
     render(el, data) {
       if (!data || data.state !== "ok") {
-        el.innerHTML = `<div class="tile--unavailable">Not available</div>`;
+        el.innerHTML =
+          `<div class="tile-title">Volume</div>` +
+          `<div class="tile--unavailable">Not available</div>`;
         return;
       }
       const { level_percent, muted } = data;

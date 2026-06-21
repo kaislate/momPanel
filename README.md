@@ -50,10 +50,7 @@ momPanel shows the things that actually matter — at a glance, in plain languag
 
 <div align="center">
 
-<!-- Drop screenshots here, e.g.: -->
-<!-- <img src="assets/screenshot-dashboard.png" width="720" alt="momPanel dashboard" /> -->
-
-_Screenshots coming soon._ 📸
+<img src="assets/screenshot-dashboard.png" width="840" alt="momPanel dashboard showing clock, calendar, CPU/memory/storage gauges, a 5-day weather forecast, and status tiles" />
 
 </div>
 

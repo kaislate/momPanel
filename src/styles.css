@@ -156,6 +156,38 @@ body {
   font-size: 10px;
 }
 
+/* Memory/Storage: device icon on the left, gauge pushed to the right; both gauges a
+   fixed identical size so the two tiles match exactly. */
+.gauge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  width: 100%;
+}
+.gauge-row .tile-icon {
+  width: 3rem;
+  height: 3rem;
+  flex: none;
+  color: var(--ink-dim);
+}
+.gauge-fixed {
+  width: 7rem;
+  height: 7rem;
+  flex: none;
+}
+.gauge-fixed .gauge {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+}
+
+/* Eye toggle: hide every button and link for a clean, info-only panel. */
+body.controls-hidden .tile-btn,
+body.controls-hidden .wx-change {
+  display: none;
+}
+
 /* friendly shortcut button */
 .tile-btn {
   margin-top: 12px;

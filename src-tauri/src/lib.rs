@@ -88,6 +88,9 @@ fn set_config(cfg: serde_json::Value) -> Result<AppConfig, String> {
             current.ui_scale = s.to_string();
         }
     }
+    if let Some(b) = cfg.get("hide_controls").and_then(|v| v.as_bool()) {
+        current.hide_controls = b;
+    }
     config::save(&current)?;
     Ok(current)
 }

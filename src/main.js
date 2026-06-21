@@ -6,15 +6,15 @@ import {
 } from "./tiles.js";
 import { registerAll } from "./tiles/index.js";
 import { listen } from "./bridge.js";
-import { initScale, mountScaleControl } from "./scale.js";
+import { initChrome, mountControls } from "./scale.js";
 
 async function boot() {
-  // Apply the saved text size before tiles render (avoids a flash of the wrong size).
-  const scale = await initScale();
+  // Apply saved size + hide-controls state before tiles render (avoids a flash).
+  const chrome = await initChrome();
 
   await registerAll(registerTile);
   mountTiles();
-  mountScaleControl(scale);
+  mountControls(chrome);
   startRenderLoop();
 
   // Instant Wi-Fi/internet refresh when the backend pushes a network change

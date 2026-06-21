@@ -20,6 +20,9 @@ pub struct AppConfig {
     /// UI size for low-vision users: "normal" | "big" | "biggest".
     #[serde(default = "default_scale")]
     pub ui_scale: String,
+    /// When true, hide all buttons/links for a clean info-only view.
+    #[serde(default)]
+    pub hide_controls: bool,
 }
 
 impl Default for AppConfig {
@@ -28,6 +31,7 @@ impl Default for AppConfig {
             zip: None,
             clock_mode: default_clock(),
             ui_scale: default_scale(),
+            hide_controls: false,
         }
     }
 }
@@ -61,6 +65,7 @@ mod tests {
         let c = AppConfig::default();
         assert_eq!(c.clock_mode, "digital");
         assert_eq!(c.ui_scale, "normal");
+        assert!(!c.hide_controls);
         assert!(c.zip.is_none());
     }
 

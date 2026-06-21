@@ -57,6 +57,7 @@ function draw(el, data) {
   const toggle = () => {
     mode = isFull ? "free" : "full";
     draw(el, data); // re-render immediately in the new mode
+    el.querySelector(".storage-gauge")?.focus(); // re-render drops focus; restore it
   };
   gauge?.addEventListener("click", toggle);
   gauge?.addEventListener("keydown", (e) => {

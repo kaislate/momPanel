@@ -76,6 +76,7 @@ body {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
     box-shadow 0.28s ease, background 0.28s ease;
+  will-change: transform;
 }
 
 /* The tile renders into this inner wrapper so the persistent "?" dot isn't wiped. */
@@ -194,7 +195,9 @@ body {
 }
 
 .tile:hover {
-  transform: translateY(-6px) scale(1.03);
+  /* translate-only lift: a fractional scale here re-rasterized text/SVG/images onto a
+     different sub-pixel grid, making elements appear to shift a few pixels on hover. */
+  transform: translateY(-6px);
   background: var(--tile-hover);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
 }
@@ -237,11 +240,13 @@ body {
   font-size: 2.4rem;
   font-weight: 700;
   line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
 .tile-sub {
   color: var(--ink-dim);
   font-size: 1.02rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .tile--unavailable {
@@ -274,7 +279,8 @@ body {
 }
 .gauge-row .device-icon {
   width: 3.4rem;
-  height: auto;
+  height: 3.4rem; /* reserved box so the recreated <img> never reflows on refresh */
+  object-fit: contain;
   flex: none;
 }
 /* Memory shows two RAM sticks stacked. */
@@ -287,6 +293,8 @@ body {
 }
 .ram-stack .device-icon {
   width: 3.2rem;
+  height: 3.2rem;
+  object-fit: contain;
 }
 /* The icons8 RAM png is a square canvas with a wide, short stick centered, so it has
    big transparent top/bottom padding — overlap the two into that dead space so the
@@ -411,10 +419,10 @@ body {
 .storage-gauge {
   cursor: pointer;
   border-radius: 50%;
-  transition: transform 0.15s ease;
+  transition: opacity 0.15s ease;
 }
 .storage-gauge:hover {
-  transform: scale(1.04);
+  opacity: 0.82;
 }
 
 /* Eye toggle: hide every button and link in the dashboard for a clean info-only
@@ -588,8 +596,8 @@ body.help-hidden .tile-help {
 }
 /* printers tile */
 .printer-photo {
+  height: 4rem; /* reserved height so the recreated <img> doesn't reflow on refresh */
   max-width: 100%;
-  max-height: 4rem;
   object-fit: contain;
 }
 .printer-line {

@@ -93,7 +93,7 @@ npm run tauri build    # 📦 build installers for your platform
 
 ## 🔄 Updates
 
-On launch, momPanel checks **GitHub Releases** for a newer **signed** version and installs it silently. You can also open the **ℹ️ About** panel to **Check for updates** manually or turn auto‑update off. See [`docs/RELEASING.md`](docs/RELEASING.md) for how releases are cut.
+On launch, momPanel checks **GitHub Releases** for a newer **signed** version and installs it silently. You can also open the **ℹ️ About** panel to **Check for updates** manually or turn auto‑update off.
 
 ## 🔒 Privacy
 
@@ -109,7 +109,6 @@ On launch, momPanel checks **GitHub Releases** for a newer **signed** version an
 ```
 src/            🎨 frontend (tiles, layout, styles)
 src-tauri/      🦀 Rust backend (collectors, config, commands)
-docs/           📚 design specs, plans, and review notes
 ```
 
 ## 📜 License

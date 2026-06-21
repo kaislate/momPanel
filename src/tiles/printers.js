@@ -1,53 +1,40 @@
-// Printers tile: one chip per CUPS printer with a colored status dot. The default
-// printer is highlighted. Empty list -> friendly "No printers connected". A
-// "Printer settings" button opens the native printers settings screen.
-//
-// Data shape (matches src/mock.js):
-//   { state: "ok", default_name: "Office_LaserJet" | null,
-//     printers: [{ name, status }] }      // status: ready | offline | out_of_paper | unknown
-//   { state: "unavailable" }
+// Printers tile: one chip per printer with a colored status dot + friendly word
+// (graphic), and an "open settings" button (foot). The default printer is starred.
 import { openSettings } from "../api.js";
-import { printerStatusWord, SETTINGS_BTN_NOTE } from "../copy.js";
+import { printerStatusWord } from "../copy.js";
+import { escapeHtml } from "../escape.js";
+import { tile, mutedGraphic } from "../layout.js";
 
-// Map a status string to a dot color. Unknown statuses fall back to grey.
 function dotColor(status) {
   switch (status) {
     case "ready":
-      return "#34c759"; // green
+      return "#34c759";
     case "offline":
-      return "#ff3b30"; // red
+      return "#ff3b30";
     case "out_of_paper":
-      return "#ff9f0a"; // amber
+      return "#ff9f0a";
     default:
-      return "#8e8e93"; // grey
+      return "#8e8e93";
   }
 }
 
-function escapeHtml(s) {
-  return String(s).replace(
-    /[&<>"']/g,
-    (c) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      }[c])
+function printerIcon() {
+  return (
+    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ` +
+    `stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
+    `<path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/>` +
+    `<path d="M7 17h10v4H7z"/></svg>`
   );
 }
 
 function chip(p, isDefault) {
   const color = dotColor(p.status);
-  const word = printerStatusWord(p.status); // friendly: "Out of paper", not "out_of_paper"
+  const word = printerStatusWord(p.status);
   const star = isDefault ? '<span aria-hidden="true">★</span>' : "";
   const cls = isDefault ? "printer-chip printer-chip--default" : "printer-chip";
-  const dot =
-    `<span class="printer-dot" aria-hidden="true" ` +
-    `style="background:${color}"></span>`;
-  const label = `${escapeHtml(p.name)} — ${word}`;
+  const dot = `<span class="printer-dot" aria-hidden="true" style="background:${color}"></span>`;
   return (
-    `<span class="${cls}" title="${label}">` +
+    `<span class="${cls}" title="${escapeHtml(p.name)} — ${word}">` +
     `${dot}${star}<span class="printer-name">${escapeHtml(p.name)}</span>` +
     `<span class="printer-status">${word}</span></span>`
   );
@@ -60,37 +47,33 @@ export function register(registerTile) {
     intervalMs: 30000,
     render(el, data) {
       if (!data || data.state === "unavailable") {
-        el.classList.add("tile--unavailable");
-        el.innerHTML =
-          `<div class="tile-title">Printers</div>` +
-          `<div class="tile-sub">Printer info isn't available here.</div>`;
+        el.innerHTML = tile({
+          title: "Printers",
+          graphic: mutedGraphic(printerIcon()),
+          foot: `<div class="tile--unavailable">Printer info isn't available here.</div>`,
+        });
         return;
       }
-      el.classList.remove("tile--unavailable");
 
       const printers = Array.isArray(data.printers) ? data.printers : [];
       const def = data.default_name ?? null;
 
-      let body;
-      if (printers.length === 0) {
-        body = `<div class="tile-sub">No printers connected</div>`;
-      } else {
-        const chips = printers
-          .map((p) => chip(p, def != null && p.name === def))
-          .join("");
-        body = `<div class="printer-chips">${chips}</div>`;
-      }
+      const graphic =
+        printers.length === 0
+          ? mutedGraphic(printerIcon())
+          : `<div class="printer-chips">${printers
+              .map((p) => chip(p, def != null && p.name === def))
+              .join("")}</div>`;
 
-      el.innerHTML =
-        `<div class="tile-title">Printers</div>` +
-        body +
-        `<button class="tile-btn" type="button" data-printers-settings>` +
-        `Open printer settings</button>` +
-        `<div class="btn-note">${SETTINGS_BTN_NOTE}</div>`;
+      const foot =
+        (printers.length === 0
+          ? `<div class="tile-sub">No printers connected</div>`
+          : "") +
+        `<button class="tile-btn" type="button" data-printers-settings>Open printer settings</button>`;
 
-      el.querySelector("[data-printers-settings]")?.addEventListener(
-        "click",
-        () => openSettings("printers")
+      el.innerHTML = tile({ title: "Printers", graphic, foot });
+      el.querySelector("[data-printers-settings]")?.addEventListener("click", () =>
+        openSettings("printers")
       );
     },
   });

@@ -6,16 +6,47 @@ import { getConfig, setConfig } from "./api.js";
 
 const STEPS = ["normal", "big", "biggest"];
 
+// Base window size (matches tauri.conf.json) and the per-step scale factors. The
+// window grows by the same factor as the font, so the 4-column layout stays identical
+// — just larger — instead of reflowing or clipping.
+const BASE_W = 1100;
+const BASE_H = 680;
+const FACTORS = { normal: 1, big: 19 / 16, biggest: 22 / 16 };
+
 function clampScale(s) {
   return STEPS.includes(s) ? s : "normal";
 }
 
-// Apply the scale by swapping the single scale-* class on <html>.
+// Grow/shrink the OS window to match the chosen size. Best-effort: if the window API
+// or permission is unavailable, the font still scales (content just stays in the
+// original window).
+async function resizeWindow(scale) {
+  const tauri = window.__TAURI__;
+  const winApi = tauri?.window;
+  // LogicalSize lives in the dpi namespace in Tauri v2 (older/global builds expose it
+  // on the window namespace too) — accept either.
+  const LogicalSize = tauri?.dpi?.LogicalSize ?? winApi?.LogicalSize;
+  if (!winApi || !LogicalSize) return;
+  try {
+    const f = FACTORS[scale] ?? 1;
+    const w = Math.round(BASE_W * f);
+    const h = Math.round(BASE_H * f);
+    const win = winApi.getCurrentWindow();
+    await win.setSize(new LogicalSize(w, h));
+    await win.center();
+  } catch {
+    /* window resize not available; font scaling still applies */
+  }
+}
+
+// Apply the scale: swap the single scale-* class on <html> (font) and resize the
+// window to match (layout-preserving).
 export function applyScale(scale) {
   const s = clampScale(scale);
   const root = document.documentElement;
   STEPS.forEach((step) => root.classList.remove(`scale-${step}`));
   root.classList.add(`scale-${s}`);
+  resizeWindow(s); // fire-and-forget
   return s;
 }
 

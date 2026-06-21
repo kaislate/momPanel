@@ -1,14 +1,9 @@
-// Wi-Fi tile: shows the active connection's SSID and signal strength as a set of
-// concentric arcs, plus a shortcut to the system Wi-Fi settings.
-// Data shape (matches mock.js): { state:"ok", ssid:string, signal_percent:number }
-//                            or { state:"unavailable" }
+// Wi-Fi tile: signal arcs (graphic), network name + an "open settings" button (foot).
 import { openSettings } from "../api.js";
 import { escapeHtml } from "../escape.js";
-import { SETTINGS_BTN_NOTE } from "../copy.js";
+import { tile, mutedGraphic } from "../layout.js";
 
-// Build an SVG with 4 nested arcs. Each ring fills proportionally to the overall
-// signal: the whole stack acts like one gauge spread across concentric rings, so
-// a weak signal lights only the inner rings faintly and a strong one fills them all.
+// Nested arcs filled proportionally to signal strength — one gauge across rings.
 function signalArcs(percent) {
   const p = Math.max(0, Math.min(100, percent));
   const color = p >= 67 ? "#5bd6a0" : p >= 34 ? "#ffb347" : "#ff5d5d";
@@ -33,6 +28,15 @@ function signalArcs(percent) {
   );
 }
 
+function wifiIcon() {
+  return (
+    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ` +
+    `stroke-linecap="round" aria-hidden="true">` +
+    `<path d="M2 8.5a16 16 0 0 1 20 0"/><path d="M5 12a11 11 0 0 1 14 0"/>` +
+    `<path d="M8.5 15.5a6 6 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/></svg>`
+  );
+}
+
 export function register(registerTile) {
   registerTile({
     id: "wifi",
@@ -40,21 +44,25 @@ export function register(registerTile) {
     intervalMs: 20000,
     render(el, data) {
       if (!data || data.state !== "ok") {
-        el.innerHTML =
-          `<div class="tile-title">Wi-Fi</div>` +
-          `<div class="tile-sub tile--unavailable">No Wi-Fi found — you may be on a cable, that's okay.</div>`;
+        el.innerHTML = tile({
+          title: "Wi-Fi",
+          graphic: mutedGraphic(wifiIcon()),
+          foot: `<div class="tile--unavailable">No Wi-Fi found — you may be on a cable, that's okay.</div>`,
+        });
         return;
       }
       const ssid = String(data.ssid ?? "");
       const signal = Number(data.signal_percent ?? 0);
-      el.innerHTML =
-        `<div class="tile-title">Wi-Fi</div>` +
-        signalArcs(signal) +
-        `<div class="tile-big">${escapeHtml(ssid)}</div>` +
-        `<button class="tile-btn" type="button" data-wifi-settings>Open Wi-Fi settings</button>` +
-        `<div class="btn-note">${SETTINGS_BTN_NOTE}</div>`;
-      const btn = el.querySelector("[data-wifi-settings]");
-      if (btn) btn.addEventListener("click", () => openSettings("wifi"));
+      el.innerHTML = tile({
+        title: "Wi-Fi",
+        graphic: signalArcs(signal),
+        foot:
+          `<div class="tile-status">${escapeHtml(ssid)}</div>` +
+          `<button class="tile-btn" type="button" data-wifi-settings>Open Wi-Fi settings</button>`,
+      });
+      el.querySelector("[data-wifi-settings]")?.addEventListener("click", () =>
+        openSettings("wifi")
+      );
     },
   });
 }

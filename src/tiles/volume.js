@@ -1,23 +1,17 @@
-// Volume tile: shows the default audio sink level on an arc gauge with a speaker
-// icon (muted variant when muted) and a shortcut to the system Sound settings.
+// Volume tile: level arc (graphic) and an "open settings" button (foot).
 import { arcGauge } from "../gauge.js";
 import { openSettings } from "../api.js";
-import { SETTINGS_BTN_NOTE } from "../copy.js";
+import { tile, mutedGraphic } from "../layout.js";
 
-// Speaker SVG. When muted, draw an "x" instead of the sound waves.
+// Speaker SVG; "x" waves when muted. Used for the unavailable placeholder graphic.
 function speakerIcon(muted) {
   const waves = muted
     ? `<line x1="16" y1="9" x2="22" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
        <line x1="22" y1="9" x2="16" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />`
     : `<path d="M16 9a4 4 0 0 1 0 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
        <path d="M18.5 6.5a8 8 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />`;
-  return `
-  <svg viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="${
-    muted ? "muted" : "volume"
-  }">
-    <path d="M3 9v6h4l5 4V5L7 9H3z" fill="currentColor" />
-    ${waves}
-  </svg>`;
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3 9v6h4l5 4V5L7 9H3z" fill="currentColor" />${waves}</svg>`;
 }
 
 export function register(registerTile) {
@@ -27,19 +21,22 @@ export function register(registerTile) {
     intervalMs: 5000,
     render(el, data) {
       if (!data || data.state !== "ok") {
-        el.innerHTML =
-          `<div class="tile-title">Volume</div>` +
-          `<div class="tile-sub tile--unavailable">Sound info isn't available here.</div>`;
+        el.innerHTML = tile({
+          title: "Volume",
+          graphic: mutedGraphic(speakerIcon(false)),
+          foot: `<div class="tile--unavailable">Sound info isn't available here.</div>`,
+        });
         return;
       }
       const { level_percent, muted } = data;
-      el.innerHTML =
-        `<div class="tile-title">${speakerIcon(muted)} Volume</div>` +
-        arcGauge(level_percent, level_percent + "%", muted ? "Muted" : "") +
-        `<button class="tile-btn" type="button">Open sound settings</button>` +
-        `<div class="btn-note">${SETTINGS_BTN_NOTE}</div>`;
-      const btn = el.querySelector(".tile-btn");
-      if (btn) btn.addEventListener("click", () => openSettings("sound"));
+      el.innerHTML = tile({
+        title: "Volume",
+        graphic: arcGauge(level_percent, level_percent + "%", muted ? "Muted" : ""),
+        foot: `<button class="tile-btn" type="button">Open sound settings</button>`,
+      });
+      el.querySelector(".tile-btn")?.addEventListener("click", () =>
+        openSettings("sound")
+      );
     },
   });
 }

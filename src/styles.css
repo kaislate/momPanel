@@ -16,20 +16,14 @@
   font-size: 16px;
 }
 
-/* Size steps: bigger text + fewer/wider columns so text isn't cramped. */
+/* Size steps scale the whole panel uniformly: the root font-size grows (so all
+   rem-based sizing grows with it) and the window is resized to match (see scale.js),
+   keeping the identical 4-column layout — just bigger. */
 :root.scale-big {
   font-size: 19px;
 }
 :root.scale-biggest {
   font-size: 22px;
-}
-:root.scale-big .grid {
-  grid-template-columns: repeat(3, 1fr);
-}
-:root.scale-biggest .grid {
-  grid-template-columns: repeat(2, 1fr);
-  grid-auto-rows: minmax(11rem, auto);
-  overflow-y: auto;
 }
 
 * {
@@ -61,11 +55,41 @@ body {
   padding: 1.1rem 1.25rem;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   min-height: 0;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
     box-shadow 0.28s ease, background 0.28s ease;
+}
+
+/* Shared tile structure: graphic fills the middle and centers; foot sits at bottom. */
+.tile-graphic {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+}
+.tile-foot {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+.tile-foot .tile-btn,
+.tile-foot .wx-change {
+  align-self: stretch;
+}
+.graphic-muted {
+  opacity: 0.45;
+}
+.graphic-muted svg {
+  width: 3rem;
+  height: 3rem;
 }
 
 .tile:hover {
@@ -100,7 +124,6 @@ body {
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--ink);
-  margin-top: 8px;
 }
 
 .tile-big {
@@ -116,9 +139,6 @@ body {
 
 .tile--unavailable {
   color: var(--ink-dim);
-  align-items: center;
-  justify-content: center;
-  text-align: center;
 }
 
 /* shared gauge */

@@ -13,7 +13,7 @@
         "title": "momPanel",
         "width": 1100,
         "height": 680,
-        "resizable": false,
+        "resizable": true,
         "decorations": false,
         "center": true,
         "dragDropEnabled": false

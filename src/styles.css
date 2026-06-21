@@ -389,36 +389,36 @@ body.controls-hidden .wx-change {
   text-align: center;
 }
 /* printers tile */
-.printer-chips {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
+.printer-photo {
+  max-width: 100%;
+  max-height: 4rem;
+  object-fit: contain;
 }
-.printer-chip {
+.printer-line {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: #232a42;
-  border-radius: 12px;
-  padding: 8px 12px;
-}
-.printer-chip--default {
-  outline: 2px solid var(--accent);
+  gap: 7px;
+  font-size: 0.95rem;
+  width: 100%;
 }
 .printer-dot {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   flex: none;
 }
 .printer-name {
   font-weight: 600;
   flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .printer-status {
   font-size: 0.9rem;
   color: var(--ink-dim);
+  flex: none;
 }
 
 /* weather tile */

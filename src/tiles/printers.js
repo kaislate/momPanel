@@ -1,5 +1,6 @@
-// Printers tile: one chip per printer with a colored status dot + friendly word
-// (graphic), and an "open settings" button (foot). The default printer is starred.
+// Printers tile: the printer photo as the graphic, with each printer's name + status
+// (and a colored dot) listed in the foot, plus an "open settings" button. The default
+// printer is starred.
 import { openSettings } from "../api.js";
 import { printerStatusWord } from "../copy.js";
 import { escapeHtml } from "../escape.js";
@@ -18,25 +19,18 @@ function dotColor(status) {
   }
 }
 
-function printerIcon() {
-  return (
-    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ` +
-    `stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
-    `<path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/>` +
-    `<path d="M7 17h10v4H7z"/></svg>`
-  );
+function printerPhoto() {
+  return `<img class="printer-photo" src="assets/printer.png" alt="" />`;
 }
 
-function chip(p, isDefault) {
-  const color = dotColor(p.status);
+function statusLine(p, isDefault) {
   const word = printerStatusWord(p.status);
-  const star = isDefault ? '<span aria-hidden="true">★</span>' : "";
-  const cls = isDefault ? "printer-chip printer-chip--default" : "printer-chip";
-  const dot = `<span class="printer-dot" aria-hidden="true" style="background:${color}"></span>`;
+  const star = isDefault ? ' <span aria-hidden="true">★</span>' : "";
   return (
-    `<span class="${cls}" title="${escapeHtml(p.name)} — ${word}">` +
-    `${dot}${star}<span class="printer-name">${escapeHtml(p.name)}</span>` +
-    `<span class="printer-status">${word}</span></span>`
+    `<div class="printer-line">` +
+    `<span class="printer-dot" style="background:${dotColor(p.status)}"></span>` +
+    `<span class="printer-name">${escapeHtml(p.name)}</span>` +
+    `<span class="printer-status">${word}</span>${star}</div>`
   );
 }
 
@@ -49,7 +43,7 @@ export function register(registerTile) {
       if (!data || data.state === "unavailable") {
         el.innerHTML = tile({
           title: "Printers",
-          graphic: mutedGraphic(printerIcon()),
+          graphic: mutedGraphic(printerPhoto()),
           foot: `<div class="tile--unavailable">Printer info isn't available here.</div>`,
         });
         return;
@@ -58,20 +52,19 @@ export function register(registerTile) {
       const printers = Array.isArray(data.printers) ? data.printers : [];
       const def = data.default_name ?? null;
 
-      const graphic =
+      const graphic = printers.length === 0 ? mutedGraphic(printerPhoto()) : printerPhoto();
+      const lines =
         printers.length === 0
-          ? mutedGraphic(printerIcon())
-          : `<div class="printer-chips">${printers
-              .map((p) => chip(p, def != null && p.name === def))
-              .join("")}</div>`;
-
-      const foot =
-        (printers.length === 0
           ? `<div class="tile-sub">No printers connected</div>`
-          : "") +
-        `<button class="tile-btn" type="button" data-printers-settings>Open printer settings</button>`;
+          : printers.map((p) => statusLine(p, def != null && p.name === def)).join("");
 
-      el.innerHTML = tile({ title: "Printers", graphic, foot });
+      el.innerHTML = tile({
+        title: "Printers",
+        graphic,
+        foot:
+          lines +
+          `<button class="tile-btn" type="button" data-printers-settings>Open printer settings</button>`,
+      });
       el.querySelector("[data-printers-settings]")?.addEventListener("click", () =>
         openSettings("printers")
       );

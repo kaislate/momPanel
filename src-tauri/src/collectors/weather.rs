@@ -9,22 +9,24 @@
 use serde::Serialize;
 use std::time::Duration;
 
+// Temperatures are in Fahrenheit (Open-Meteo is queried with temperature_unit=fahrenheit).
 #[derive(Serialize)]
 pub struct DayForecast {
     pub date: String, // YYYY-MM-DD (local tz); frontend formats the weekday
     pub code: u8,
-    pub high_c: f32,
-    pub low_c: f32,
+    pub high_f: f32,
+    pub low_f: f32,
+    pub precip_prob: u8, // max precipitation probability for the day, 0-100
 }
 
 #[derive(Serialize)]
 #[serde(tag = "state", rename_all = "lowercase")]
 pub enum WeatherData {
     Ok {
-        temp_c: f32,
+        temp_f: f32,
         code: u8,
-        high_c: f32,
-        low_c: f32,
+        high_f: f32,
+        low_f: f32,
         place: String,
         days: Vec<DayForecast>,
     },
@@ -81,14 +83,14 @@ fn try_read(zip: &str) -> Option<WeatherData> {
     let fc_url = format!(
         "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}\
          &current=temperature_2m,weather_code\
-         &daily=temperature_2m_max,temperature_2m_min,weather_code\
-         &forecast_days=5&timezone=auto",
+         &daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max\
+         &forecast_days=5&temperature_unit=fahrenheit&timezone=auto",
         lat, lon
     );
     let fc: serde_json::Value = client.get(&fc_url).send().ok()?.json().ok()?;
 
     let current = fc.get("current")?;
-    let temp_c = current.get("temperature_2m")?.as_f64()? as f32;
+    let temp_f = current.get("temperature_2m")?.as_f64()? as f32;
     let code = current.get("weather_code")?.as_u64()? as u8;
 
     let daily = fc.get("daily")?;
@@ -96,9 +98,10 @@ fn try_read(zip: &str) -> Option<WeatherData> {
     let maxs = daily.get("temperature_2m_max")?.as_array()?;
     let mins = daily.get("temperature_2m_min")?.as_array()?;
     let codes = daily.get("weather_code")?.as_array()?;
+    let probs = daily.get("precipitation_probability_max").and_then(|v| v.as_array());
 
-    let high_c = maxs.first()?.as_f64()? as f32;
-    let low_c = mins.first()?.as_f64()? as f32;
+    let high_f = maxs.first()?.as_f64()? as f32;
+    let low_f = mins.first()?.as_f64()? as f32;
 
     let n = times.len().min(5);
     let mut days = Vec::with_capacity(n);
@@ -106,16 +109,20 @@ fn try_read(zip: &str) -> Option<WeatherData> {
         days.push(DayForecast {
             date: times[i].as_str().unwrap_or("").to_string(),
             code: codes.get(i).and_then(|v| v.as_u64()).unwrap_or(0) as u8,
-            high_c: maxs.get(i).and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
-            low_c: mins.get(i).and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+            high_f: maxs.get(i).and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+            low_f: mins.get(i).and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+            precip_prob: probs
+                .and_then(|a| a.get(i))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u8,
         });
     }
 
     Some(WeatherData::Ok {
-        temp_c,
+        temp_f,
         code,
-        high_c,
-        low_c,
+        high_f,
+        low_f,
         place,
         days,
     })

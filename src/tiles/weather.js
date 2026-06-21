@@ -3,7 +3,6 @@
 import { readWeather, getConfig, setConfig } from "../api.js";
 import { promptZip } from "../firstrun.js";
 import { refreshTile } from "../tiles.js";
-import { weatherWord } from "../copy.js";
 import { tile, mutedGraphic } from "../layout.js";
 
 function condition(code) {
@@ -47,15 +46,40 @@ function dayLabel(dateStr, index) {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short" });
 }
 
-// One column of the 5-day forecast.
+// Granular plain-language description from a WMO weather code. For wet conditions it
+// appends the precipitation probability, e.g. "Rain 60%".
+function describe(code, prob) {
+  let base;
+  if (code === 0) base = "Sunny";
+  else if (code === 1) base = "Mostly Sunny";
+  else if (code === 2) base = "Partly Cloudy";
+  else if (code === 3) base = "Cloudy";
+  else if (code === 45 || code === 48) base = "Fog";
+  else if (code >= 51 && code <= 55) base = "Drizzle";
+  else if (code === 56 || code === 57) base = "Icy Drizzle";
+  else if (code === 61) base = "Light Rain";
+  else if (code === 63) base = "Rain";
+  else if (code === 65) base = "Heavy Rain";
+  else if (code === 66 || code === 67) base = "Icy Rain";
+  else if (code >= 71 && code <= 77) base = "Snow";
+  else if (code >= 80 && code <= 82) base = "Showers";
+  else if (code === 85 || code === 86) base = "Snow Showers";
+  else if (code >= 95) base = "Storm";
+  else base = "Cloudy";
+  const wet = (code >= 51 && code <= 86) || code >= 95;
+  return wet && prob > 0 ? `${base} ${prob}%` : base;
+}
+
+// One row of the 5-day forecast: day name | icon | description | high/low.
 function forecastDay(day, index) {
   const cond = condition(day.code);
   return (
     `<div class="wx-day">` +
     `<div class="wx-day-name">${dayLabel(day.date, index)}</div>` +
-    `${icon(cond, 28)}` +
-    `<div class="wx-day-temp">${round(day.high_c)}&deg;` +
-    `<span class="wx-day-low">${round(day.low_c)}&deg;</span></div></div>`
+    `${icon(cond, 26)}` +
+    `<div class="wx-day-desc">${describe(day.code, day.precip_prob ?? 0)}</div>` +
+    `<div class="wx-day-temp">${round(day.high_f)}&deg;` +
+    `<span class="wx-day-low">${round(day.low_f)}&deg;</span></div></div>`
   );
 }
 
@@ -96,16 +120,17 @@ export function register(registerTile) {
       }
       const cond = condition(data.code);
       const days = Array.isArray(data.days) ? data.days : [];
+      const todayProb = days[0]?.precip_prob ?? 0;
       // Custom layout for this double-height tile: current conditions on top, the
-      // 5-day forecast row below.
+      // 5-day forecast list below.
       el.innerHTML =
         `<div class="tile-title">${escapeHtml(data.place ?? "Weather")}</div>` +
         `<div class="wx-current">` +
         `<div class="wx-row">${icon(cond)}` +
-        `<div class="tile-big">${round(data.temp_c)}&deg;</div></div>` +
-        `<div class="tile-status">${weatherWord(cond)}</div>` +
-        `<div class="tile-sub">H ${round(data.high_c)}&deg; &middot; L ${round(
-          data.low_c
+        `<div class="tile-big">${round(data.temp_f)}&deg;</div></div>` +
+        `<div class="tile-status">${describe(data.code, todayProb)}</div>` +
+        `<div class="tile-sub">H ${round(data.high_f)}&deg; &middot; L ${round(
+          data.low_f
         )}&deg;</div></div>` +
         `<div class="wx-forecast">${days
           .map((d, i) => forecastDay(d, i))

@@ -3,6 +3,7 @@
 // Data shape (matches mock.js): { state:"ok", ssid:string, signal_percent:number }
 //                            or { state:"unavailable" }
 import { openSettings } from "../api.js";
+import { escapeHtml } from "../escape.js";
 
 // Build an SVG with 4 nested arcs. Each ring fills proportionally to the overall
 // signal: the whole stack acts like one gauge spread across concentric rings, so
@@ -48,7 +49,7 @@ export function register(registerTile) {
       el.innerHTML =
         `<div class="tile-title">Wi-Fi</div>` +
         signalArcs(signal) +
-        `<div class="tile-big">${ssid}</div>` +
+        `<div class="tile-big">${escapeHtml(ssid)}</div>` +
         `<button class="tile-btn" type="button" data-wifi-settings>Wi-Fi settings</button>`;
       const btn = el.querySelector("[data-wifi-settings]");
       if (btn) btn.addEventListener("click", () => openSettings("wifi"));

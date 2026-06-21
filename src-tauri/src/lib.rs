@@ -5,27 +5,50 @@ mod shortcuts;
 use config::AppConfig;
 
 // Dispatch a simple (no-arg) tile collector by name. Unknown names -> "unavailable".
-// The integration step adds one match arm per collector, e.g.:
-//   "memory" => serde_json::to_value(collectors::memory::read()).unwrap_or(unavail()),
+// Collectors shell out to system tools (nmcli/lpstat/wpctl) or do a TCP probe, which
+// can block; the async command offloads the work to a blocking thread pool so the
+// IPC worker thread is never stalled.
 #[tauri::command]
-fn read_tile(name: String) -> serde_json::Value {
-    match name.as_str() {
-        "memory" => serde_json::to_value(collectors::memory::read()).unwrap_or(unavail()),
-        "storage" => serde_json::to_value(collectors::storage::read()).unwrap_or(unavail()),
-        "wifi" => serde_json::to_value(collectors::wifi::read())
-            .unwrap_or(serde_json::json!({"state":"unavailable"})),
-        "internet" => serde_json::to_value(collectors::internet::read())
-            .unwrap_or(serde_json::json!({"state":"unavailable"})),
-        "volume" => serde_json::to_value(collectors::volume::read()).unwrap_or(unavail()),
-        "printers" => serde_json::to_value(collectors::printers::read()).unwrap_or(unavail()),
+async fn read_tile(name: String) -> serde_json::Value {
+    tauri::async_runtime::spawn_blocking(move || read_tile_sync(&name))
+        .await
+        .unwrap_or_else(|_| unavail())
+}
+
+fn read_tile_sync(name: &str) -> serde_json::Value {
+    match name {
+        "memory" => serde_json::to_value(collectors::memory::read()).unwrap_or_else(|_| unavail()),
+        "storage" => {
+            serde_json::to_value(collectors::storage::read()).unwrap_or_else(|_| unavail())
+        }
+        "wifi" => serde_json::to_value(collectors::wifi::read()).unwrap_or_else(|_| unavail()),
+        "internet" => {
+            serde_json::to_value(collectors::internet::read()).unwrap_or_else(|_| unavail())
+        }
+        "volume" => serde_json::to_value(collectors::volume::read()).unwrap_or_else(|_| unavail()),
+        "printers" => {
+            serde_json::to_value(collectors::printers::read()).unwrap_or_else(|_| unavail())
+        }
         _ => unavail(),
     }
 }
 
+/// US ZIP must be exactly five digits. This is the real trust boundary — the frontend
+/// modal check is UX only and cannot be relied upon (any IPC caller can reach here).
+fn is_valid_zip(zip: &str) -> bool {
+    zip.len() == 5 && zip.bytes().all(|b| b.is_ascii_digit())
+}
+
 #[tauri::command]
-fn read_weather(zip: String) -> serde_json::Value {
-    serde_json::to_value(crate::collectors::weather::read(&zip))
-        .unwrap_or_else(|_| serde_json::json!({"state":"unavailable"}))
+async fn read_weather(zip: String) -> serde_json::Value {
+    if !is_valid_zip(&zip) {
+        return unavail();
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        serde_json::to_value(crate::collectors::weather::read(&zip)).unwrap_or_else(|_| unavail())
+    })
+    .await
+    .unwrap_or_else(|_| unavail())
 }
 
 fn unavail() -> serde_json::Value {
@@ -45,13 +68,19 @@ fn set_config(cfg: serde_json::Value) -> Result<AppConfig, String> {
     let mut current = config::load();
     if let Some(v) = cfg.get("zip") {
         if let Some(s) = v.as_str() {
+            if !is_valid_zip(s) {
+                return Err("zip must be exactly five digits".into());
+            }
             current.zip = Some(s.to_string());
         } else if v.is_null() {
             current.zip = None;
         }
     }
+    // clock_mode is constrained to the two known values; ignore anything else.
     if let Some(s) = cfg.get("clock_mode").and_then(|v| v.as_str()) {
-        current.clock_mode = s.to_string();
+        if s == "analog" || s == "digital" {
+            current.clock_mode = s.to_string();
+        }
     }
     config::save(&current)?;
     Ok(current)
@@ -79,7 +108,6 @@ async fn check_for_update(app: tauri::AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         // Autostart on login. LaunchAgent is the macOS strategy; on Linux this
         // writes a ~/.config/autostart entry, on Windows a registry Run key.

@@ -38,25 +38,53 @@ pub fn read() -> WifiData {
     }
 }
 
-/// Parse `nmcli -t -f ACTIVE,SSID,SIGNAL dev wifi` output. Each line is colon
-/// separated: `ACTIVE:SSID:SIGNAL`. Returns the row whose first field is "yes"
-/// as `(ssid, signal_percent)`, or `None` when no active row / parse fails.
+/// Split one line of `nmcli -t` terse output into fields. nmcli escapes the field
+/// separator inside values as `\:` and a literal backslash as `\\`, so a naive
+/// `split(':')` corrupts any SSID containing a colon. This splits on UNescaped
+/// colons and unescapes each field.
+fn split_terse(line: &str) -> Vec<String> {
+    let mut fields = Vec::new();
+    let mut cur = String::new();
+    let mut chars = line.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => {
+                // Emit the escaped char literally (\: -> :, \\ -> \).
+                if let Some(n) = chars.next() {
+                    cur.push(n);
+                } else {
+                    cur.push('\\');
+                }
+            }
+            ':' => fields.push(std::mem::take(&mut cur)),
+            _ => cur.push(c),
+        }
+    }
+    fields.push(cur);
+    fields
+}
+
+/// Parse `nmcli -t -f ACTIVE,SSID,SIGNAL dev wifi` output. Returns the row whose
+/// ACTIVE field is "yes" as `(ssid, signal_percent)`, or `None` when no active row
+/// / parse fails. SSIDs containing colons are handled via `split_terse`.
 fn parse_nmcli(text: &str) -> Option<(String, u8)> {
     for line in text.lines() {
-        // ACTIVE:SSID:SIGNAL — split into at most 3 parts so an SSID with no
-        // colon is preserved; nmcli escapes colons inside fields as "\:".
-        let mut parts = line.splitn(3, ':');
-        let active = parts.next()?;
-        if active != "yes" {
+        let fields = split_terse(line);
+        if fields.len() < 3 {
             continue;
         }
-        let ssid = parts.next()?;
-        let signal = parts.next()?;
+        if fields[0] != "yes" {
+            continue;
+        }
+        // ACTIVE = first, SIGNAL = last, SSID = everything between (defensively
+        // re-joined with ':' should an SSID ever yield extra fields).
+        let last = fields.len() - 1;
+        let ssid = fields[1..last].join(":");
         if ssid.is_empty() {
             continue;
         }
-        let signal_percent: u8 = signal.trim().parse().ok()?;
-        return Some((ssid.to_string(), signal_percent.min(100)));
+        let signal_percent: u8 = fields[last].trim().parse().ok()?;
+        return Some((ssid, signal_percent.min(100)));
     }
     None
 }
@@ -98,5 +126,18 @@ mod tests {
     fn none_when_signal_unparseable() {
         let input = "yes:HomeWifi:abc\n";
         assert_eq!(parse_nmcli(input), None);
+    }
+
+    #[test]
+    fn handles_ssid_with_escaped_colon() {
+        // nmcli terse escapes ':' in an SSID as '\:'
+        let input = "no:Other:30\nyes:Cafe\\:Guest:64\n";
+        assert_eq!(parse_nmcli(input), Some(("Cafe:Guest".to_string(), 64)));
+    }
+
+    #[test]
+    fn handles_ssid_with_escaped_backslash() {
+        let input = "yes:Home\\\\Net:50\n";
+        assert_eq!(parse_nmcli(input), Some(("Home\\Net".to_string(), 50)));
     }
 }

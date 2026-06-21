@@ -57,7 +57,11 @@ pub fn parse_lpstat(text: &str) -> PrintersData {
                 continue;
             }
             let tail = parts.next().unwrap_or("").to_lowercase();
-            let status = if tail.contains("disabled") || tail.contains("offline") {
+            // CUPS often appends a reason after a state, e.g.
+            // "disabled since ... - out of paper" or "... media-empty".
+            let status = if tail.contains("paper") || tail.contains("media-empty") {
+                "out_of_paper"
+            } else if tail.contains("disabled") || tail.contains("offline") {
                 "offline"
             } else if tail.contains("idle") || tail.contains("processing") {
                 "ready"
@@ -117,6 +121,14 @@ system default destination: Office_LaserJet\n";
         let data = parse_lpstat(sample);
         let (printers, _) = ok_parts(&data);
         assert_eq!(printers[0].status, "offline");
+    }
+
+    #[test]
+    fn out_of_paper_detected() {
+        let sample = "printer Photo is disabled since Mon - out of paper\n";
+        let data = parse_lpstat(sample);
+        let (printers, _) = ok_parts(&data);
+        assert_eq!(printers[0].status, "out_of_paper");
     }
 
     #[test]

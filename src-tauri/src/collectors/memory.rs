@@ -3,7 +3,15 @@
 //! falls back to `Unavailable` when total memory reads as 0.
 
 use serde::Serialize;
+use std::sync::{Mutex, OnceLock};
 use sysinfo::System;
+
+// Reuse one System across polls (every ~3s) instead of allocating a fresh one each
+// time; we only ever refresh the memory subsystem.
+fn shared_system() -> &'static Mutex<System> {
+    static SYS: OnceLock<Mutex<System>> = OnceLock::new();
+    SYS.get_or_init(|| Mutex::new(System::new()))
+}
 
 #[derive(Serialize)]
 #[serde(tag = "state", rename_all = "lowercase")]
@@ -25,7 +33,11 @@ fn percent(used: u64, total: u64) -> f32 {
 }
 
 pub fn read() -> MemoryData {
-    let mut sys = System::new();
+    // Recover from a poisoned lock so one panicked poll can't disable the tile forever.
+    let mut sys = match shared_system().lock() {
+        Ok(g) => g,
+        Err(poisoned) => poisoned.into_inner(),
+    };
     sys.refresh_memory();
 
     let total = sys.total_memory(); // bytes

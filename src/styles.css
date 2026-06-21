@@ -267,6 +267,18 @@ body {
   font-size: 10px;
 }
 
+/* Wi-Fi connected, strength unknown */
+.wifi-connected {
+  color: #5bd6a0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wifi-connected svg {
+  width: 5rem;
+  height: 5rem;
+}
+
 /* Memory/Storage: device icon on the left, gauge pushed to the right; both gauges a
    fixed identical size so the two tiles match exactly. */
 .gauge-row {

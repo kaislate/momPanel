@@ -2,6 +2,18 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.3.5 — 2026-06-21
+
+### Added
+- **Windows volume** via Core Audio (`IAudioEndpointVolume` on the default playback
+  device); the `windows` crate is a Windows-only dependency.
+
+### Fixed
+- **Windows Wi-Fi:** Windows 11 blocks `netsh` SSID/signal without Location permission.
+  We now fall back to the connection profile's name (no Location needed); `signal_percent`
+  is optional and the tile shows the SSID + "Connected" when strength is unknown (the full
+  arcs return once Location is enabled).
+
 ## 0.3.4 — 2026-06-21
 
 ### Added

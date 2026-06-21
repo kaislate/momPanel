@@ -34,9 +34,44 @@ pub fn read() -> VolumeData {
         }
     }
 
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "windows")]
+    {
+        match win_volume() {
+            Some((level_percent, muted)) => VolumeData::Ok {
+                level_percent,
+                muted,
+            },
+            None => VolumeData::Unavailable,
+        }
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
         VolumeData::Unavailable
+    }
+}
+
+/// Windows master volume + mute via Core Audio (IAudioEndpointVolume on the default
+/// playback device). Returns None on any COM error.
+#[cfg(target_os = "windows")]
+fn win_volume() -> Option<(u8, bool)> {
+    use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
+    use windows::Win32::Media::Audio::{
+        eConsole, eRender, IMMDeviceEnumerator, MMDeviceEnumerator,
+    };
+    use windows::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_APARTMENTTHREADED,
+    };
+    unsafe {
+        // COM may already be initialized on this thread; ignore the result.
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let enumerator: IMMDeviceEnumerator =
+            CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
+        let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole).ok()?;
+        let endpoint: IAudioEndpointVolume = device.Activate(CLSCTX_ALL, None).ok()?;
+        let level = endpoint.GetMasterVolumeLevelScalar().ok()?; // 0.0..=1.0
+        let muted = endpoint.GetMute().ok()?.as_bool();
+        Some(((level * 100.0).round().clamp(0.0, 100.0) as u8, muted))
     }
 }
 

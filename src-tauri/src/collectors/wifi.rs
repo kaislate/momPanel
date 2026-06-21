@@ -6,11 +6,15 @@ use serde::Serialize;
 #[derive(Serialize)]
 #[serde(tag = "state", rename_all = "lowercase")]
 pub enum WifiData {
-    Ok { ssid: String, signal_percent: u8 },
+    // signal_percent is None when we know the network name but not the strength
+    // (e.g. Windows without Location permission, where only the SSID is readable).
+    Ok {
+        ssid: String,
+        signal_percent: Option<u8>,
+    },
     Unavailable,
 }
 
-/// Pure dispatch: Linux runs the real tool, everything else is Unavailable.
 pub fn read() -> WifiData {
     #[cfg(target_os = "linux")]
     {
@@ -24,7 +28,7 @@ pub fn read() -> WifiData {
                 match parse_nmcli(&text) {
                     Some((ssid, signal_percent)) => WifiData::Ok {
                         ssid,
-                        signal_percent,
+                        signal_percent: Some(signal_percent),
                     },
                     None => WifiData::Unavailable,
                 }
@@ -34,31 +38,64 @@ pub fn read() -> WifiData {
     }
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
-        use std::process::Command;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000; // no console flash
-        let output = Command::new("netsh")
-            .args(["wlan", "show", "interfaces"])
-            .creation_flags(CREATE_NO_WINDOW)
-            .output();
-        match output {
-            Ok(out) if out.status.success() => {
-                let text = String::from_utf8_lossy(&out.stdout);
-                match parse_netsh(&text) {
-                    Some((ssid, signal_percent)) => WifiData::Ok {
-                        ssid,
-                        signal_percent,
-                    },
-                    None => WifiData::Unavailable,
-                }
-            }
-            _ => WifiData::Unavailable,
+        // Prefer netsh (gives SSID + signal) — but on Windows 11 that needs Location
+        // permission. If it fails, fall back to the network name via the connection
+        // profile (no permission needed), with strength unknown.
+        if let Some((ssid, sig)) = win_netsh() {
+            return WifiData::Ok {
+                ssid,
+                signal_percent: Some(sig),
+            };
+        }
+        match win_ssid() {
+            Some(ssid) => WifiData::Ok {
+                ssid,
+                signal_percent: None,
+            },
+            None => WifiData::Unavailable,
         }
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
         WifiData::Unavailable
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn win_netsh() -> Option<(String, u8)> {
+    use std::os::windows::process::CommandExt;
+    use std::process::Command;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let out = Command::new("netsh")
+        .args(["wlan", "show", "interfaces"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    parse_netsh(&String::from_utf8_lossy(&out.stdout))
+}
+
+#[cfg(target_os = "windows")]
+fn win_ssid() -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    use std::process::Command;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    // The connection profile's Name is the SSID for a Wi-Fi interface; no Location
+    // permission required.
+    let script = "$a=Get-NetAdapter|?{$_.Status -eq 'Up' -and ($_.PhysicalMediaType -match '802.11' -or $_.InterfaceDescription -match 'Wireless|Wi-?Fi')}|Select-Object -First 1; if($a){(Get-NetConnectionProfile -InterfaceIndex $a.IfIndex -ErrorAction SilentlyContinue).Name}";
+    let out = Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .ok()?;
+    let ssid = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if ssid.is_empty() {
+        None
+    } else {
+        Some(ssid)
     }
 }
 

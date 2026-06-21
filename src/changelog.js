@@ -1,6 +1,12 @@
 // Plain-English, kind "what's new" notes shown inside the app after an update, keyed
 // by version. (The GitHub release notes in CHANGELOG.md can be more technical.)
 export const CHANGELOG = {
+  "0.3.5": {
+    changes: [
+      "🔊 The sound level now works on Windows, not just Linux.",
+      "📶 Wi-Fi now shows your network name on Windows. (Tip: turn on Location in Windows settings to also see the signal strength.)",
+    ],
+  },
   "0.3.4": {
     changes: [
       "📶 Wi-Fi and 🖨️ printers now work on Windows too, not just Linux.",

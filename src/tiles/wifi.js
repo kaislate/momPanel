@@ -37,6 +37,12 @@ function wifiIcon() {
   );
 }
 
+// Connected, but signal strength unknown (e.g. Windows without Location permission):
+// show a full green Wi-Fi glyph instead of the strength arcs.
+function connectedGraphic() {
+  return `<div class="wifi-connected gauge">${wifiIcon()}</div>`;
+}
+
 export function register(registerTile) {
   registerTile({
     id: "wifi",
@@ -52,12 +58,13 @@ export function register(registerTile) {
         return;
       }
       const ssid = String(data.ssid ?? "");
-      const signal = Number(data.signal_percent ?? 0);
+      const hasSignal = typeof data.signal_percent === "number";
       el.innerHTML = tile({
         title: "Wi-Fi",
-        graphic: signalArcs(signal),
+        graphic: hasSignal ? signalArcs(data.signal_percent) : connectedGraphic(),
         foot:
           `<div class="tile-status">${escapeHtml(ssid)}</div>` +
+          (hasSignal ? "" : `<div class="tile-sub">Connected</div>`) +
           `<button class="tile-btn" type="button" data-wifi-settings>Open Wi-Fi settings</button>`,
       });
       el.querySelector("[data-wifi-settings]")?.addEventListener("click", () =>

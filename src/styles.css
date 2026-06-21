@@ -264,30 +264,39 @@ body {
   gap: 4px;
   min-height: 0;
 }
+/* Vertical list: each day is its own row — name (left), icon, temps (right). */
 .wx-forecast {
   display: flex;
-  gap: 4px;
-  margin-top: 8px;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  width: 100%;
 }
 .wx-day {
-  flex: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 2px;
+  gap: 10px;
 }
 .wx-day-name {
-  font-size: 0.78rem;
+  flex: 0 0 3.6rem;
+  text-align: left;
+  font-size: 0.92rem;
   color: var(--ink-dim);
 }
+.wx-day .wx-icon {
+  flex: none;
+}
 .wx-day-temp {
-  font-size: 0.82rem;
+  flex: 1;
+  text-align: right;
+  font-size: 0.95rem;
   font-weight: 600;
 }
 .wx-day-low {
   color: var(--ink-dim);
   font-weight: 400;
-  margin-left: 3px;
+  margin-left: 8px;
 }
 .gauge-fixed {
   width: 7rem;

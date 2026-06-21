@@ -4,15 +4,9 @@ import { arcGauge } from "../gauge.js";
 import { cpuMessage } from "../copy.js";
 import { tile } from "../layout.js";
 
-// Simple processor-chip icon (square die with pins on all four sides).
+// The computer image (background removed) stands in for the CPU/machine.
 function cpuIcon() {
-  return (
-    `<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" ` +
-    `stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
-    `<rect x="7" y="7" width="10" height="10" rx="1.5"/>` +
-    `<rect x="10" y="10" width="4" height="4"/>` +
-    `<path d="M10 7V4M14 7V4M10 20v-3M14 20v-3M7 10H4M7 14H4M20 10h-3M20 14h-3"/></svg>`
-  );
+  return `<img class="device-icon" src="assets/cpu.png" alt="" />`;
 }
 
 export function register(registerTile) {

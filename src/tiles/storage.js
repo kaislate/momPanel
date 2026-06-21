@@ -5,17 +5,9 @@ import { openSettings } from "../api.js";
 import { storageMessage } from "../copy.js";
 import { tile } from "../layout.js";
 
-// Hard-drive icon (case with a platter and actuator arm).
+// Hard-drive icon, using the user-supplied HDD image.
 function hddIcon() {
-  return (
-    `<svg class="tile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" ` +
-    `stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
-    `<rect x="3" y="6" width="18" height="12" rx="2"/>` +
-    `<circle cx="9" cy="12" r="3.4"/>` +
-    `<circle cx="9" cy="12" r="0.6" fill="currentColor"/>` +
-    `<path d="M11.5 14.5 16 18"/>` +
-    `<circle cx="17" cy="15" r="0.8" fill="currentColor"/></svg>`
-  );
+  return `<img class="device-icon" src="assets/hdd.png" alt="" />`;
 }
 
 export function register(registerTile) {

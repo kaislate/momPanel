@@ -165,11 +165,21 @@ body {
   gap: 0.8rem;
   width: 100%;
 }
-.gauge-row .tile-icon {
-  width: 3rem;
-  height: 3rem;
+.gauge-row .device-icon {
+  width: 3.4rem;
+  height: auto;
   flex: none;
-  color: var(--ink-dim);
+}
+/* Memory shows two RAM sticks stacked. */
+.ram-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  flex: none;
+}
+.ram-stack .device-icon {
+  width: 2.9rem;
 }
 .gauge-fixed {
   width: 7rem;

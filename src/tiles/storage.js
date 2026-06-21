@@ -24,17 +24,15 @@ export function register(registerTile) {
         return;
       }
       const { used_percent, free_gb, total_gb } = data;
+      const pct = Math.round(used_percent);
       el.innerHTML = tile({
         title: "Storage",
         graphic:
           `<div class="gauge-row">${hddIcon()}` +
-          `<div class="gauge-fixed">${arcGauge(
-            used_percent,
-            free_gb + " GB",
-            "free of " + total_gb + " GB"
-          )}</div></div>`,
+          `<div class="gauge-fixed">${arcGauge(used_percent, pct + "% full", "")}</div></div>`,
         foot:
           `<div class="tile-status">${storageMessage(used_percent)}</div>` +
+          `<div class="storage-detail">${free_gb} GB free of ${total_gb} GB</div>` +
           `<button class="tile-btn" type="button">Open storage settings</button>`,
       });
       el.querySelector(".tile-btn")?.addEventListener("click", () =>

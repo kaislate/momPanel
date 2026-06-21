@@ -177,6 +177,12 @@ body {
   color: var(--ink);
 }
 
+/* small "X GB free of Y GB" detail under the storage gauge */
+.storage-detail {
+  font-size: 0.82rem;
+  color: var(--ink-dim);
+}
+
 .tile-big {
   font-size: 2.4rem;
   font-weight: 700;

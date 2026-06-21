@@ -15,11 +15,11 @@ export const HELP = {
   },
   memory: {
     title: "Memory",
-    text: "Memory (also called RAM) is your computer's short-term workspace for whatever it's doing right now. It's normal for it to fill up, and restarting clears it.",
+    text: "Memory (also called RAM) is your computer's short-term workspace for whatever it's doing right now. It's normal for it to fill up. To free some up, close programs you aren't using, close extra tabs in Opera, or restart the computer.",
   },
   storage: {
     title: "Storage",
-    text: "Storage is where your files, photos, and programs are kept for good. This shows how much room you have left.",
+    text: "This shows how full your storage is. Storage is where your files, photos, and programs are kept — a higher percentage means less free room left.",
   },
   wifi: {
     title: "Wi-Fi",

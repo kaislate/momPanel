@@ -82,6 +82,12 @@ fn set_config(cfg: serde_json::Value) -> Result<AppConfig, String> {
             current.clock_mode = s.to_string();
         }
     }
+    // ui_scale is one of three known sizes; ignore anything else.
+    if let Some(s) = cfg.get("ui_scale").and_then(|v| v.as_str()) {
+        if s == "normal" || s == "big" || s == "biggest" {
+            current.ui_scale = s.to_string();
+        }
+    }
     config::save(&current)?;
     Ok(current)
 }

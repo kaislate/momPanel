@@ -7,12 +7,19 @@ fn default_clock() -> String {
     "digital".into()
 }
 
+fn default_scale() -> String {
+    "normal".into()
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AppConfig {
     #[serde(default)]
     pub zip: Option<String>,
     #[serde(default = "default_clock")]
     pub clock_mode: String,
+    /// UI size for low-vision users: "normal" | "big" | "biggest".
+    #[serde(default = "default_scale")]
+    pub ui_scale: String,
 }
 
 impl Default for AppConfig {
@@ -20,6 +27,7 @@ impl Default for AppConfig {
         Self {
             zip: None,
             clock_mode: default_clock(),
+            ui_scale: default_scale(),
         }
     }
 }
@@ -52,7 +60,14 @@ mod tests {
     fn defaults_when_missing() {
         let c = AppConfig::default();
         assert_eq!(c.clock_mode, "digital");
+        assert_eq!(c.ui_scale, "normal");
         assert!(c.zip.is_none());
+    }
+
+    #[test]
+    fn ui_scale_defaults_on_partial_json() {
+        let c: AppConfig = serde_json::from_str(r#"{"clock_mode":"analog"}"#).unwrap();
+        assert_eq!(c.ui_scale, "normal");
     }
 
     #[test]

@@ -27,7 +27,7 @@ export async function getConfig() {
   try {
     return await invoke("get_config");
   } catch {
-    return { zip: null, clock_mode: "digital" };
+    return { zip: null, clock_mode: "digital", ui_scale: "normal" };
   }
 }
 

@@ -24,11 +24,12 @@ export function promptZip(currentZip = "") {
 
     const title = document.createElement("div");
     title.className = "tile-title";
-    title.textContent = "Set your location";
+    title.textContent = "Where do you live?";
 
     const hint = document.createElement("div");
     hint.className = "tile-sub";
-    hint.textContent = "Enter a 5-digit US ZIP code for the weather.";
+    hint.textContent =
+      "Enter your 5-digit ZIP code so we can show your local weather. We only use it for the weather.";
 
     const input = document.createElement("input");
     input.type = "text";

@@ -2,6 +2,7 @@
 // icon (muted variant when muted) and a shortcut to the system Sound settings.
 import { arcGauge } from "../gauge.js";
 import { openSettings } from "../api.js";
+import { SETTINGS_BTN_NOTE } from "../copy.js";
 
 // Speaker SVG. When muted, draw an "x" instead of the sound waves.
 function speakerIcon(muted) {
@@ -28,14 +29,15 @@ export function register(registerTile) {
       if (!data || data.state !== "ok") {
         el.innerHTML =
           `<div class="tile-title">Volume</div>` +
-          `<div class="tile--unavailable">Not available</div>`;
+          `<div class="tile-sub tile--unavailable">Sound info isn't available here.</div>`;
         return;
       }
       const { level_percent, muted } = data;
       el.innerHTML =
         `<div class="tile-title">${speakerIcon(muted)} Volume</div>` +
-        arcGauge(level_percent, level_percent + "%", muted ? "muted" : "") +
-        `<button class="tile-btn" type="button">Sound settings</button>`;
+        arcGauge(level_percent, level_percent + "%", muted ? "Muted" : "") +
+        `<button class="tile-btn" type="button">Open sound settings</button>` +
+        `<div class="btn-note">${SETTINGS_BTN_NOTE}</div>`;
       const btn = el.querySelector(".tile-btn");
       if (btn) btn.addEventListener("click", () => openSettings("sound"));
     },

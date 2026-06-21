@@ -1,6 +1,7 @@
 // Internet tile: shows whether the machine has working internet access.
 // Data shape (matches src/mock.js): { state: "ok", online: bool } or { state: "unavailable" }.
 import { getTile } from "../api.js";
+import { internetMessage } from "../copy.js";
 
 function globeSvg(color) {
   return (
@@ -38,7 +39,8 @@ export function register(registerTile) {
         `<div class="tile-title">Internet</div>` +
         `<div class="tile-big" style="color:${color}">` +
         `${globeSvg(color)} ${label}` +
-        `</div>`;
+        `</div>` +
+        `<div class="tile-status">${internetMessage(online)}</div>`;
     },
   });
 }

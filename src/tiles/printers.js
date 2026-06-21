@@ -7,6 +7,7 @@
 //     printers: [{ name, status }] }      // status: ready | offline | out_of_paper | unknown
 //   { state: "unavailable" }
 import { openSettings } from "../api.js";
+import { printerStatusWord, SETTINGS_BTN_NOTE } from "../copy.js";
 
 // Map a status string to a dot color. Unknown statuses fall back to grey.
 function dotColor(status) {
@@ -38,15 +39,17 @@ function escapeHtml(s) {
 
 function chip(p, isDefault) {
   const color = dotColor(p.status);
+  const word = printerStatusWord(p.status); // friendly: "Out of paper", not "out_of_paper"
   const star = isDefault ? '<span aria-hidden="true">★</span>' : "";
   const cls = isDefault ? "printer-chip printer-chip--default" : "printer-chip";
   const dot =
     `<span class="printer-dot" aria-hidden="true" ` +
     `style="background:${color}"></span>`;
-  const label = `${escapeHtml(p.name)} (${escapeHtml(p.status)})`;
+  const label = `${escapeHtml(p.name)} — ${word}`;
   return (
     `<span class="${cls}" title="${label}">` +
-    `${dot}${star}<span class="printer-name">${escapeHtml(p.name)}</span></span>`
+    `${dot}${star}<span class="printer-name">${escapeHtml(p.name)}</span>` +
+    `<span class="printer-status">${word}</span></span>`
   );
 }
 
@@ -60,7 +63,7 @@ export function register(registerTile) {
         el.classList.add("tile--unavailable");
         el.innerHTML =
           `<div class="tile-title">Printers</div>` +
-          `<div class="tile-big">Not available</div>`;
+          `<div class="tile-sub">Printer info isn't available here.</div>`;
         return;
       }
       el.classList.remove("tile--unavailable");
@@ -82,7 +85,8 @@ export function register(registerTile) {
         `<div class="tile-title">Printers</div>` +
         body +
         `<button class="tile-btn" type="button" data-printers-settings>` +
-        `Printer settings</button>`;
+        `Open printer settings</button>` +
+        `<div class="btn-note">${SETTINGS_BTN_NOTE}</div>`;
 
       el.querySelector("[data-printers-settings]")?.addEventListener(
         "click",

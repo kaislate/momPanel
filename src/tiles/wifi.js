@@ -4,6 +4,7 @@
 //                            or { state:"unavailable" }
 import { openSettings } from "../api.js";
 import { escapeHtml } from "../escape.js";
+import { SETTINGS_BTN_NOTE } from "../copy.js";
 
 // Build an SVG with 4 nested arcs. Each ring fills proportionally to the overall
 // signal: the whole stack acts like one gauge spread across concentric rings, so
@@ -41,7 +42,7 @@ export function register(registerTile) {
       if (!data || data.state !== "ok") {
         el.innerHTML =
           `<div class="tile-title">Wi-Fi</div>` +
-          `<div class="tile--unavailable">Not available</div>`;
+          `<div class="tile-sub tile--unavailable">No Wi-Fi found — you may be on a cable, that's okay.</div>`;
         return;
       }
       const ssid = String(data.ssid ?? "");
@@ -50,7 +51,8 @@ export function register(registerTile) {
         `<div class="tile-title">Wi-Fi</div>` +
         signalArcs(signal) +
         `<div class="tile-big">${escapeHtml(ssid)}</div>` +
-        `<button class="tile-btn" type="button" data-wifi-settings>Wi-Fi settings</button>`;
+        `<button class="tile-btn" type="button" data-wifi-settings>Open Wi-Fi settings</button>` +
+        `<div class="btn-note">${SETTINGS_BTN_NOTE}</div>`;
       const btn = el.querySelector("[data-wifi-settings]");
       if (btn) btn.addEventListener("click", () => openSettings("wifi"));
     },

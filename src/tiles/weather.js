@@ -4,6 +4,7 @@
 import { readWeather, getConfig, setConfig } from "../api.js";
 import { promptZip } from "../firstrun.js";
 import { refreshTile } from "../tiles.js";
+import { weatherWord } from "../copy.js";
 
 // Same WMO mapping as the Rust collector's condition(), replicated to pick an icon.
 function condition(code) {
@@ -65,7 +66,8 @@ export function register(registerTile) {
         el.classList.add("tile--unavailable");
         el.innerHTML =
           `<div class="tile-title">Weather</div>` +
-          `<div class="tile-big">Not available</div>`;
+          `<div class="tile-sub">Weather isn't available right now.</div>` +
+          `<a href="#" class="wx-change">set location</a>`;
         wireChangeLink(el);
         return;
       }
@@ -75,10 +77,11 @@ export function register(registerTile) {
         `<div class="tile-title">${escapeHtml(data.place ?? "Weather")}</div>` +
         `<div class="wx-row">${icon(cond)}` +
         `<div class="tile-big">${round(data.temp_c)}&deg;</div></div>` +
+        `<div class="tile-status">${weatherWord(cond)}</div>` +
         `<div class="tile-sub">H ${round(data.high_c)}&deg; &middot; L ${round(
           data.low_c
         )}&deg;</div>` +
-        `<a href="#" class="wx-change tile-sub">change location</a>`;
+        `<a href="#" class="wx-change">change location</a>`;
       wireChangeLink(el);
     },
   });

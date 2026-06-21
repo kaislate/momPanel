@@ -1,5 +1,6 @@
 // Memory tile: shows RAM usage as an arc gauge with used/total in GB.
 import { arcGauge } from "../gauge.js";
+import { memoryMessage } from "../copy.js";
 
 export function register(registerTile) {
   registerTile({
@@ -18,7 +19,8 @@ export function register(registerTile) {
         Math.round(used_mb / 1024) + " / " + Math.round(total_mb / 1024) + " GB";
       el.innerHTML =
         `<div class="tile-title">Memory</div>` +
-        arcGauge(used_percent, Math.round(used_percent) + "%", sub);
+        arcGauge(used_percent, Math.round(used_percent) + "%", sub) +
+        `<div class="tile-status">${memoryMessage(used_percent)}</div>`;
     },
   });
 }

@@ -13,8 +13,8 @@ export function logoSvg(size = 120) {
     `<rect x="4" y="17" width="14" height="8" rx="2" fill="#5b8cff"/>` +
     `<rect x="22" y="17" width="14" height="8" rx="2" fill="#ff5d5d"/>` +
     `</g>` +
-    // the mom, in front
-    `<text x="42" y="82" font-size="62" text-anchor="middle">\u{1F469}</text>` +
+    // the mom (older woman), in front
+    `<text x="42" y="82" font-size="62" text-anchor="middle">\u{1F475}</text>` +
     `</svg>`
   );
 }

@@ -32,6 +32,7 @@ export async function getConfig() {
       clock_mode: "digital",
       ui_scale: "normal",
       hide_controls: false,
+      auto_update: true,
     };
   }
 }
@@ -50,5 +51,29 @@ export async function openSettings(target) {
     return await invoke("open_settings", { target });
   } catch {
     return null;
+  }
+}
+
+export async function appVersion() {
+  try {
+    return await invoke("app_version");
+  } catch {
+    return "";
+  }
+}
+
+export async function openGithub() {
+  try {
+    return await invoke("open_github");
+  } catch {
+    return null;
+  }
+}
+
+export async function checkUpdates() {
+  try {
+    return await invoke("check_updates");
+  } catch {
+    return "Couldn't check for updates";
   }
 }

@@ -11,6 +11,10 @@ fn default_scale() -> String {
     "normal".into()
 }
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AppConfig {
     #[serde(default)]
@@ -23,6 +27,9 @@ pub struct AppConfig {
     /// When true, hide all buttons/links for a clean info-only view.
     #[serde(default)]
     pub hide_controls: bool,
+    /// Automatically check for and install updates on launch (on by default).
+    #[serde(default = "default_true")]
+    pub auto_update: bool,
 }
 
 impl Default for AppConfig {
@@ -32,6 +39,7 @@ impl Default for AppConfig {
             clock_mode: default_clock(),
             ui_scale: default_scale(),
             hide_controls: false,
+            auto_update: true,
         }
     }
 }

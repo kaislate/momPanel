@@ -5,6 +5,7 @@
 // (so all rem-based sizing grows with it) and the window is resized to match, keeping
 // the identical layout — just bigger.
 import { getConfig, setConfig } from "./api.js";
+import { openInfo } from "./info.js";
 
 const STEPS = ["normal", "big", "biggest"];
 const BASE_W = 1100;
@@ -80,10 +81,13 @@ export function mountControls({ scale, hidden }) {
   const wrap = document.createElement("div");
   wrap.className = "scale-control";
   wrap.innerHTML =
+    `<button type="button" class="scale-btn scale-btn--info" data-info aria-label="About momPanel">i</button>` +
     `<button type="button" class="scale-btn" data-eye aria-label="Hide or show buttons"></button>` +
     `<button type="button" class="scale-btn" data-step="-1" aria-label="Make text smaller">A&minus;</button>` +
     `<button type="button" class="scale-btn" data-step="1" aria-label="Make text bigger">A+</button>`;
   document.body.appendChild(wrap);
+
+  wrap.querySelector("[data-info]").addEventListener("click", () => openInfo());
 
   const eyeBtn = wrap.querySelector("[data-eye]");
   const paintEye = () => {

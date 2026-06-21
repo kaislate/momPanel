@@ -386,6 +386,58 @@ body.controls-hidden .wx-change {
   background: var(--accent);
   transform: scale(1.08);
 }
+.scale-btn--info {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 700;
+}
+
+/* About / info overlay panel */
+.info-card {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.info-logo {
+  line-height: 0;
+}
+.info-name {
+  font-size: 1.7rem;
+  font-weight: 800;
+}
+.info-version {
+  color: var(--ink-dim);
+  font-size: 0.95rem;
+}
+.info-status {
+  min-height: 1.2em;
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+.info-btn {
+  width: 100%;
+  margin-top: 2px;
+}
+.info-auto {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 6px;
+  font-size: 0.95rem;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.info-auto input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+.info-close {
+  width: 100%;
+  background: #2c3450;
+}
 
 /* modal (first-run ZIP prompt / change location) */
 #modal-root:empty {

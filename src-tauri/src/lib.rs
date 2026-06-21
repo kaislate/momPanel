@@ -92,8 +92,53 @@ fn set_config(cfg: serde_json::Value) -> Result<AppConfig, String> {
     if let Some(b) = cfg.get("hide_controls").and_then(|v| v.as_bool()) {
         current.hide_controls = b;
     }
+    if let Some(b) = cfg.get("auto_update").and_then(|v| v.as_bool()) {
+        current.auto_update = b;
+    }
     config::save(&current)?;
     Ok(current)
+}
+
+// App version (from tauri.conf.json), shown in the info panel.
+#[tauri::command]
+fn app_version(app: tauri::AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
+// Open the project's GitHub page in the user's default browser. Fixed URL (no
+// arbitrary input), so there is nothing to inject.
+#[tauri::command]
+fn open_github() -> Result<(), String> {
+    let url = "https://github.com/kaislate/momPanel";
+    #[cfg(target_os = "linux")]
+    let r = std::process::Command::new("xdg-open").arg(url).spawn();
+    #[cfg(target_os = "windows")]
+    let r = std::process::Command::new("cmd").args(["/C", "start", "", url]).spawn();
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    let r: std::io::Result<std::process::Child> =
+        Err(std::io::Error::new(std::io::ErrorKind::Other, "unsupported"));
+    r.map(|_| ()).map_err(|e| e.to_string())
+}
+
+// Manual "check for updates": returns a short status for the info panel. If an update
+// is found it installs and restarts.
+#[tauri::command]
+async fn check_updates(app: tauri::AppHandle) -> String {
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = match app.updater() {
+        Ok(u) => u,
+        Err(_) => return "Updater unavailable".into(),
+    };
+    match updater.check().await {
+        Ok(Some(update)) => {
+            if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
+                app.restart();
+            }
+            "Update failed".into()
+        }
+        Ok(None) => "You're up to date".into(),
+        Err(_) => "Couldn't check (are you online?)".into(),
+    }
 }
 
 // Check GitHub Releases for a newer signed version and install it silently, then
@@ -130,9 +175,11 @@ pub fn run() {
             use tauri_plugin_autostart::ManagerExt;
             let _ = app.autolaunch().enable();
 
-            // Check for updates in the background so launch is never blocked.
-            let handle = app.handle().clone();
-            tauri::async_runtime::spawn(check_for_update(handle));
+            // Auto-check for updates on launch, unless the user turned it off.
+            if config::load().auto_update {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(check_for_update(handle));
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -140,6 +187,9 @@ pub fn run() {
             get_config,
             set_config,
             read_weather,
+            app_version,
+            open_github,
+            check_updates,
             shortcuts::open_settings
         ])
         .run(tauri::generate_context!())

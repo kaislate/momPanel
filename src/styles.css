@@ -318,9 +318,10 @@ body {
   max-height: none;
 }
 
-/* Eye toggle: hide every button and link for a clean, info-only panel. */
-body.controls-hidden .tile-btn,
-body.controls-hidden .wx-change {
+/* Eye toggle: hide every button and link in the dashboard for a clean info-only
+   view. Scoped to #grid so the About overlay's own buttons are never hidden. */
+body.controls-hidden #grid .tile-btn,
+body.controls-hidden #grid .wx-change {
   display: none;
 }
 

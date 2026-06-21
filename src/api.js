@@ -78,3 +78,19 @@ export async function checkUpdates() {
     return "Couldn't check for updates";
   }
 }
+
+export async function getAutostart() {
+  try {
+    return await invoke("get_autostart");
+  } catch {
+    return false;
+  }
+}
+
+export async function setAutostart(enabled) {
+  try {
+    return await invoke("set_autostart", { enabled });
+  } catch {
+    return null;
+  }
+}

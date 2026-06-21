@@ -33,6 +33,9 @@ pub struct AppConfig {
     /// Hide the per-tile "?" help dots when true (hidden by default — tap "?" to show).
     #[serde(default = "default_true")]
     pub hide_help: bool,
+    /// One-time flag: whether we've done the "enable autostart on first run" step.
+    #[serde(default)]
+    pub autostart_initialized: bool,
 }
 
 impl Default for AppConfig {
@@ -44,6 +47,7 @@ impl Default for AppConfig {
             hide_controls: false,
             auto_update: true,
             hide_help: true,
+            autostart_initialized: false,
         }
     }
 }

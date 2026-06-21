@@ -76,7 +76,6 @@ body {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
     box-shadow 0.28s ease, background 0.28s ease;
-  will-change: transform;
 }
 
 /* The tile renders into this inner wrapper so the persistent "?" dot isn't wiped. */

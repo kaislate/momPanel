@@ -163,8 +163,31 @@ async fn check_for_update(app: tauri::AppHandle) {
     }
 }
 
+// Read whether the app is set to launch on login.
+#[tauri::command]
+fn get_autostart(app: tauri::AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+// Turn launch-on-login on or off (the About panel's "Start at login" toggle).
+#[tauri::command]
+fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let mgr = app.autolaunch();
+    let r = if enabled { mgr.enable() } else { mgr.disable() };
+    r.map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Work around a WebKitGTK DMABUF rendering bug that causes glitchy rendering and
+    // flaky mouse input on many newer Wayland/Mesa setups (common with AppImages).
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         // Autostart on login. LaunchAgent is the macOS strategy; on Linux this
@@ -174,12 +197,18 @@ pub fn run() {
             None,
         ))
         .setup(|app| {
-            // Register autostart on first run (idempotent).
             use tauri_plugin_autostart::ManagerExt;
-            let _ = app.autolaunch().enable();
+            // Enable autostart ONCE on first run; after that respect the user's choice
+            // (via the "Start at login" toggle) instead of forcing it on every launch.
+            let mut cfg = config::load();
+            if !cfg.autostart_initialized {
+                let _ = app.autolaunch().enable();
+                cfg.autostart_initialized = true;
+                let _ = config::save(&cfg);
+            }
 
             // Auto-check for updates on launch, unless the user turned it off.
-            if config::load().auto_update {
+            if cfg.auto_update {
                 let handle = app.handle().clone();
                 tauri::async_runtime::spawn(check_for_update(handle));
             }
@@ -193,6 +222,8 @@ pub fn run() {
             app_version,
             open_github,
             check_updates,
+            get_autostart,
+            set_autostart,
             shortcuts::open_settings
         ])
         .run(tauri::generate_context!())

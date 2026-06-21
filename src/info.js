@@ -6,6 +6,8 @@ import {
   checkUpdates,
   getConfig,
   setConfig,
+  getAutostart,
+  setAutostart,
 } from "./api.js";
 import { logoSvg } from "./logo.js";
 
@@ -13,7 +15,11 @@ export async function openInfo() {
   const root = document.getElementById("modal-root");
   if (!root) return;
 
-  const [version, cfg] = await Promise.all([appVersion(), getConfig()]);
+  const [version, cfg, autostart] = await Promise.all([
+    appVersion(),
+    getConfig(),
+    getAutostart(),
+  ]);
 
   root.innerHTML =
     `<div class="modal-backdrop"><div class="modal-card info-card">` +
@@ -23,6 +29,9 @@ export async function openInfo() {
     `<div class="info-status" aria-live="polite"></div>` +
     `<button class="tile-btn info-btn" data-action="updates">Check for updates</button>` +
     `<button class="tile-btn info-btn" data-action="github">Visit GitHub</button>` +
+    `<label class="info-auto"><input type="checkbox" data-startup ${
+      autostart ? "checked" : ""
+    } /> Start automatically when I log in</label>` +
     `<label class="info-auto"><input type="checkbox" data-auto ${
       cfg.auto_update ? "checked" : ""
     } /> Update automatically</label>` +
@@ -60,5 +69,9 @@ export async function openInfo() {
 
   root.querySelector("[data-auto]").addEventListener("change", (e) => {
     setConfig({ auto_update: e.target.checked });
+  });
+
+  root.querySelector("[data-startup]").addEventListener("change", (e) => {
+    setAutostart(e.target.checked);
   });
 }

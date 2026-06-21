@@ -29,22 +29,53 @@ pub fn percent(used: u64, total: u64) -> f32 {
     (used as f64 / total as f64 * 100.0) as f32
 }
 
+/// Choose which disk the "Storage" tile should report. The tile is meant to show the
+/// drive that holds the user's OS and files (C:\ on Windows, / or /home on Linux), NOT
+/// merely the largest attached disk. We pick the mount point that is the longest path
+/// prefix of the user's home directory; failing that, "/" (Linux); failing that, the
+/// largest disk by total size.
+fn choose_disk(
+    mounts: &[std::path::PathBuf],
+    home: Option<&std::path::Path>,
+    totals: &[u64],
+) -> Option<usize> {
+    if let Some(h) = home {
+        if let Some((i, _)) = mounts
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| h.starts_with(m))
+            .max_by_key(|(_, m)| m.as_os_str().len())
+        {
+            return Some(i);
+        }
+    }
+    if let Some(i) = mounts
+        .iter()
+        .position(|m| m == std::path::Path::new("/"))
+    {
+        return Some(i);
+    }
+    totals
+        .iter()
+        .enumerate()
+        .max_by_key(|(_, t)| **t)
+        .map(|(i, _)| i)
+}
+
 pub fn read() -> StorageData {
     let disks = Disks::new_with_refreshed_list();
     if disks.is_empty() {
         return StorageData::Unavailable;
     }
 
-    // Prefer the root mount "/" (Linux); otherwise the largest disk by total space.
-    let chosen = disks
-        .iter()
-        .find(|d| d.mount_point().to_str() == Some("/"))
-        .or_else(|| disks.iter().max_by_key(|d| d.total_space()));
-
-    let disk = match chosen {
-        Some(d) => d,
+    let mounts: Vec<std::path::PathBuf> =
+        disks.iter().map(|d| d.mount_point().to_path_buf()).collect();
+    let totals: Vec<u64> = disks.iter().map(|d| d.total_space()).collect();
+    let idx = match choose_disk(&mounts, dirs::home_dir().as_deref(), &totals) {
+        Some(i) => i,
         None => return StorageData::Unavailable,
     };
+    let disk = &disks[idx];
 
     let total = disk.total_space();
     if total == 0 {
@@ -81,5 +112,38 @@ mod tests {
         // ~63% used, like the mock fixture.
         let p = percent(308, 488);
         assert!((p - 63.11).abs() < 0.5, "got {p}");
+    }
+
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn picks_home_owning_mount() {
+        let mounts = vec![PathBuf::from("/"), PathBuf::from("/home")];
+        let totals = vec![500u64, 200u64];
+        // /home is the longer prefix of /home/user, so it wins even though / is bigger.
+        assert_eq!(choose_disk(&mounts, Some(Path::new("/home/user")), &totals), Some(1));
+    }
+
+    #[test]
+    fn falls_back_to_root_without_home() {
+        let mounts = vec![PathBuf::from("/mnt/big"), PathBuf::from("/")];
+        let totals = vec![9000u64, 100u64];
+        assert_eq!(choose_disk(&mounts, None, &totals), Some(1));
+    }
+
+    #[test]
+    fn falls_back_to_largest_without_home_or_root() {
+        let mounts = vec![PathBuf::from("/mnt/a"), PathBuf::from("/mnt/b")];
+        let totals = vec![100u64, 900u64];
+        assert_eq!(choose_disk(&mounts, None, &totals), Some(1));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn picks_system_drive_over_largest_on_windows() {
+        let mounts = vec![PathBuf::from("C:\\"), PathBuf::from("R:\\")];
+        let totals = vec![1810u64, 5589u64];
+        // C:\ holds the user's home, so it wins over the bigger R:\ drive.
+        assert_eq!(choose_disk(&mounts, Some(Path::new("C:\\Users\\x")), &totals), Some(0));
     }
 }

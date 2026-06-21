@@ -66,6 +66,7 @@ body {
 .tile[data-id="volume"] { grid-area: volume; }
 
 .tile {
+  position: relative;
   background: var(--tile);
   border-radius: 22px;
   padding: 1.1rem 1.25rem;
@@ -75,6 +76,40 @@ body {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
     box-shadow 0.28s ease, background 0.28s ease;
+}
+
+/* The tile renders into this inner wrapper so the persistent "?" dot isn't wiped. */
+.tile-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* "?" help dot, top-right of each tile. */
+.tile-help {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.8rem;
+  width: 1.45rem;
+  height: 1.45rem;
+  border: none;
+  border-radius: 50%;
+  background: #2c3450;
+  color: var(--ink-dim);
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.tile-help:hover {
+  background: var(--accent);
+  color: #fff;
 }
 
 /* Shared tile structure: graphic fills the middle and centers; foot sits at bottom. */
@@ -321,7 +356,8 @@ body {
 /* Eye toggle: hide every button and link in the dashboard for a clean info-only
    view. Scoped to #grid so the About overlay's own buttons are never hidden. */
 body.controls-hidden #grid .tile-btn,
-body.controls-hidden #grid .wx-change {
+body.controls-hidden #grid .wx-change,
+body.controls-hidden #grid .tile-help {
   display: none;
 }
 
@@ -438,6 +474,23 @@ body.controls-hidden #grid .wx-change {
 .info-close {
   width: 100%;
   background: #2c3450;
+}
+
+/* Per-tile "what is this?" popup */
+.help-card {
+  width: 300px;
+  text-align: left;
+}
+.help-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.help-text {
+  color: var(--ink-dim);
+  font-size: 1rem;
+  line-height: 1.45;
+  margin-bottom: 16px;
 }
 
 /* modal (first-run ZIP prompt / change location) */

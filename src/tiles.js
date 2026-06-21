@@ -21,9 +21,24 @@ export function mountTiles() {
     el.dataset.id = t.id;
     el.style.animationDelay = `${i * 70}ms`; // staggered reveal
     el.setAttribute("aria-label", t.title);
+
+    // A "?" help dot, persistent because the tile renders into a separate inner
+    // content div (so re-renders don't wipe the dot). Clicks are delegated in main.js.
+    const help = document.createElement("button");
+    help.className = "tile-help";
+    help.type = "button";
+    help.dataset.help = t.id;
+    help.setAttribute("aria-label", "What is this?");
+    help.textContent = "?";
+    el.appendChild(help);
+
+    const content = document.createElement("div");
+    content.className = "tile-content";
+    el.appendChild(content);
+
     grid.appendChild(el);
-    t._el = el;
-    t.onMount?.(el);
+    t._el = content; // tiles render into here
+    t.onMount?.(content);
   });
 }
 

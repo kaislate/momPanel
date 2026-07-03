@@ -49,6 +49,11 @@ fn is_valid_hex_color(s: &str) -> bool {
     b.len() == 7 && b[0] == b'#' && b[1..].iter().all(|c| c.is_ascii_hexdigit())
 }
 
+/// The preset names the UI may send (plus "custom" for edited palettes).
+fn valid_preset(p: &str) -> bool {
+    matches!(p, "midnight" | "warm" | "high-contrast" | "custom")
+}
+
 /// Clamp a volume floor to the 0.0–1.0 range.
 fn clamp_floor(v: f64) -> f32 {
     v.clamp(0.0, 1.0) as f32
@@ -62,6 +67,19 @@ mod alert_cfg_tests {
         assert_eq!(clamp_floor(1.5), 1.0);
         assert_eq!(clamp_floor(-0.2), 0.0);
         assert_eq!(clamp_floor(0.6), 0.6);
+    }
+}
+
+#[cfg(test)]
+mod theme_cfg_tests {
+    use super::valid_preset;
+    #[test]
+    fn known_presets_only() {
+        assert!(valid_preset("midnight"));
+        assert!(valid_preset("warm"));
+        assert!(valid_preset("high-contrast"));
+        assert!(valid_preset("custom"));
+        assert!(!valid_preset("rainbow"));
     }
 }
 
@@ -184,6 +202,26 @@ fn set_config(cfg: serde_json::Value) -> Result<AppConfig, String> {
     }
     if let Some(b) = cfg.get("mem_warn_escalate_enabled").and_then(|v| v.as_bool()) {
         current.mem_warn_escalate_enabled = b;
+    }
+    if let Some(theme) = cfg.get("theme").and_then(|v| v.as_object()) {
+        let hex = |k: &str, cur: &mut String| {
+            if let Some(s) = theme.get(k).and_then(|v| v.as_str()) {
+                if is_valid_hex_color(s) {
+                    *cur = s.to_uppercase();
+                }
+            }
+        };
+        if let Some(p) = theme.get("preset").and_then(|v| v.as_str()) {
+            if valid_preset(p) {
+                current.theme.preset = p.to_string();
+            }
+        }
+        hex("accent", &mut current.theme.accent);
+        hex("bg", &mut current.theme.bg);
+        hex("tile", &mut current.theme.tile);
+        hex("gauge_ok", &mut current.theme.gauge_ok);
+        hex("gauge_warn", &mut current.theme.gauge_warn);
+        hex("gauge_bad", &mut current.theme.gauge_bad);
     }
     config::save(&current)?;
     Ok(current)

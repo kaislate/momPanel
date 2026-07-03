@@ -1,6 +1,7 @@
 mod collectors;
 mod config;
 mod memwatch;
+mod notifier;
 mod shortcuts;
 
 use config::AppConfig;

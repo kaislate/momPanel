@@ -31,6 +31,66 @@ fn default_volume_floor() -> f32 {
     0.60
 }
 
+fn tp() -> String {
+    "midnight".into()
+}
+
+fn t_accent() -> String {
+    "#5b8cff".into()
+}
+
+fn t_bg() -> String {
+    "#0e1119".into()
+}
+
+fn t_tile() -> String {
+    "#1b2030".into()
+}
+
+fn t_ok() -> String {
+    "#5bd6a0".into()
+}
+
+fn t_warn() -> String {
+    "#ffb347".into()
+}
+
+fn t_bad() -> String {
+    "#ff5d5d".into()
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Theme {
+    #[serde(default = "tp")]
+    pub preset: String,
+    #[serde(default = "t_accent")]
+    pub accent: String,
+    #[serde(default = "t_bg")]
+    pub bg: String,
+    #[serde(default = "t_tile")]
+    pub tile: String,
+    #[serde(default = "t_ok")]
+    pub gauge_ok: String,
+    #[serde(default = "t_warn")]
+    pub gauge_warn: String,
+    #[serde(default = "t_bad")]
+    pub gauge_bad: String,
+}
+
+impl Default for Theme {
+    fn default() -> Self {
+        Self {
+            preset: tp(),
+            accent: t_accent(),
+            bg: t_bg(),
+            tile: t_tile(),
+            gauge_ok: t_ok(),
+            gauge_warn: t_warn(),
+            gauge_bad: t_bad(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AppConfig {
     #[serde(default)]
@@ -82,6 +142,9 @@ pub struct AppConfig {
     /// Escalate to a centered modal dialog if the alert is ignored.
     #[serde(default = "default_true")]
     pub mem_warn_escalate_enabled: bool,
+    /// Color theme (curated slots + active preset name).
+    #[serde(default)]
+    pub theme: Theme,
 }
 
 impl Default for AppConfig {
@@ -104,6 +167,7 @@ impl Default for AppConfig {
             mem_warn_speech_enabled: true,
             mem_warn_pulse_enabled: true,
             mem_warn_escalate_enabled: true,
+            theme: Theme::default(),
         }
     }
 }
@@ -170,5 +234,21 @@ mod tests {
         let c: AppConfig = serde_json::from_str(r#"{"mem_warn_percent":80}"#).unwrap();
         assert_eq!(c.mem_warn_sound, "suspend-error");
         assert!(c.mem_warn_speech_enabled);
+    }
+
+    #[test]
+    fn theme_defaults_to_midnight() {
+        let c = AppConfig::default();
+        assert_eq!(c.theme.preset, "midnight");
+        assert_eq!(c.theme.accent, "#5b8cff");
+        assert_eq!(c.theme.gauge_bad, "#ff5d5d");
+    }
+
+    #[test]
+    fn theme_fills_defaults_on_partial_json() {
+        let c: AppConfig = serde_json::from_str(r##"{"theme":{"accent":"#112233"}}"##).unwrap();
+        assert_eq!(c.theme.accent, "#112233");
+        assert_eq!(c.theme.preset, "midnight");
+        assert_eq!(c.theme.bg, "#0e1119");
     }
 }

@@ -44,6 +44,15 @@ export async function getConfig() {
       mem_warn_speech_enabled: true,
       mem_warn_pulse_enabled: true,
       mem_warn_escalate_enabled: true,
+      theme: {
+        preset: "midnight",
+        accent: "#5b8cff",
+        bg: "#0e1119",
+        tile: "#1b2030",
+        gauge_ok: "#5bd6a0",
+        gauge_warn: "#ffb347",
+        gauge_bad: "#ff5d5d",
+      },
     };
   }
 }

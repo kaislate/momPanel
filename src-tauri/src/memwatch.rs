@@ -118,3 +118,158 @@ fn top_process(sys: &mut System) -> (String, u64) {
     }
     (best_name, best_mem / 1_048_576)
 }
+
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct State {
+    pub active: bool,
+    pub pulses: u32,
+    pub escalated: bool,
+    pub suppressed: bool,
+}
+
+pub struct Tick {
+    pub pct: f64,
+    pub trigger: f64,
+    pub recover: f64,
+    pub since_start: f64,
+    pub since_fire: f64,
+    pub pulse_enabled: bool,
+    pub escalate_enabled: bool,
+    pub dismiss: bool,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Action {
+    Nothing,
+    Clear,
+    Fire { pulse: u32, escalate: bool },
+}
+
+/// Pure decision + state transition for one poll tick.
+pub fn advance(s: &mut State, t: &Tick) -> Action {
+    // User dismissed: suppress until recovery; drop the modal.
+    if t.dismiss && s.active {
+        s.suppressed = true;
+        s.escalated = false;
+        return Action::Clear;
+    }
+    // Recovery: usage fell back below the hysteresis floor.
+    if s.active && t.pct < t.recover {
+        *s = State::default();
+        return Action::Clear;
+    }
+    if t.pct < t.trigger || s.suppressed {
+        return Action::Nothing;
+    }
+    // At/above trigger, not suppressed.
+    if !s.active {
+        s.active = true;
+        s.pulses = 1;
+        return Action::Fire { pulse: 1, escalate: false };
+    }
+    let due_pulse = t.pulse_enabled && t.since_fire >= 30.0;
+    let due_escalate =
+        t.escalate_enabled && !s.escalated && s.pulses >= 2 && t.since_start >= 90.0;
+    if !due_pulse && !due_escalate {
+        return Action::Nothing;
+    }
+    let mut did_escalate = false;
+    if due_pulse {
+        s.pulses += 1;
+    }
+    if due_escalate {
+        s.escalated = true;
+        did_escalate = true;
+    }
+    Action::Fire { pulse: s.pulses, escalate: did_escalate }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{advance, Action, State, Tick};
+
+    fn base() -> Tick {
+        Tick {
+            pct: 90.0,
+            trigger: 85.0,
+            recover: 78.0,
+            since_start: 0.0,
+            since_fire: 0.0,
+            pulse_enabled: true,
+            escalate_enabled: true,
+            dismiss: false,
+        }
+    }
+
+    #[test]
+    fn first_crossing_fires_pulse_one() {
+        let mut s = State::default();
+        assert_eq!(advance(&mut s, &base()), Action::Fire { pulse: 1, escalate: false });
+        assert!(s.active);
+        assert_eq!(s.pulses, 1);
+    }
+
+    #[test]
+    fn below_trigger_does_nothing_when_idle() {
+        let mut s = State::default();
+        let t = Tick { pct: 50.0, ..base() };
+        assert_eq!(advance(&mut s, &t), Action::Nothing);
+        assert!(!s.active);
+    }
+
+    #[test]
+    fn no_repeat_before_30s() {
+        let mut s = State { active: true, pulses: 1, escalated: false, suppressed: false };
+        let t = Tick { since_fire: 10.0, since_start: 10.0, ..base() };
+        assert_eq!(advance(&mut s, &t), Action::Nothing);
+    }
+
+    #[test]
+    fn pulses_after_30s() {
+        let mut s = State { active: true, pulses: 1, escalated: false, suppressed: false };
+        let t = Tick { since_fire: 31.0, since_start: 31.0, ..base() };
+        assert_eq!(advance(&mut s, &t), Action::Fire { pulse: 2, escalate: false });
+        assert_eq!(s.pulses, 2);
+    }
+
+    #[test]
+    fn escalates_after_two_pulses_and_90s() {
+        let mut s = State { active: true, pulses: 2, escalated: false, suppressed: false };
+        let t = Tick { since_fire: 31.0, since_start: 95.0, ..base() };
+        let a = advance(&mut s, &t);
+        assert_eq!(a, Action::Fire { pulse: 3, escalate: true });
+        assert!(s.escalated);
+    }
+
+    #[test]
+    fn does_not_escalate_twice() {
+        let mut s = State { active: true, pulses: 3, escalated: true, suppressed: false };
+        let t = Tick { since_fire: 31.0, since_start: 130.0, ..base() };
+        assert_eq!(advance(&mut s, &t), Action::Fire { pulse: 4, escalate: false });
+    }
+
+    #[test]
+    fn recovery_clears_and_resets() {
+        let mut s = State { active: true, pulses: 3, escalated: true, suppressed: true };
+        let t = Tick { pct: 70.0, ..base() };
+        assert_eq!(advance(&mut s, &t), Action::Clear);
+        assert_eq!(s, State::default());
+    }
+
+    #[test]
+    fn dismiss_suppresses_and_clears_modal() {
+        let mut s = State { active: true, pulses: 2, escalated: true, suppressed: false };
+        let t = Tick { dismiss: true, ..base() };
+        assert_eq!(advance(&mut s, &t), Action::Clear);
+        assert!(s.suppressed);
+        assert!(!s.escalated);
+        assert!(s.active); // stays active but suppressed until recovery
+    }
+
+    #[test]
+    fn suppressed_does_not_fire() {
+        let mut s = State { active: true, pulses: 1, escalated: false, suppressed: true };
+        let t = Tick { since_fire: 60.0, since_start: 60.0, ..base() };
+        assert_eq!(advance(&mut s, &t), Action::Nothing);
+    }
+}

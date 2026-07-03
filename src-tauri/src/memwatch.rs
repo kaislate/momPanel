@@ -10,7 +10,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use sysinfo::{ProcessesToUpdate, System};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::AppHandle;
 
 // Set by the `dismiss_mem_warn` command; consumed by the watcher on its next tick.
 static DISMISS_REQUESTED: AtomicBool = AtomicBool::new(false);
@@ -25,33 +25,23 @@ const POLL: Duration = Duration::from_secs(2);
 const HYSTERESIS: f64 = 7.0;
 
 pub fn spawn(app: AppHandle) {
+    use std::time::Instant;
     std::thread::spawn(move || {
         let mut sys = System::new();
-        let mut showing = false; // banner currently visible
-        let mut suppressed = false; // dismissed by user, awaiting recovery
+        let mut state = State::default();
+        let mut started = Instant::now();
+        let mut last_fire = Instant::now();
 
         loop {
             std::thread::sleep(POLL);
-
             let cfg = crate::config::load();
+
             if !cfg.mem_warn_enabled {
-                if showing {
-                    hide(&app);
-                    showing = false;
+                if state.active || state.escalated {
+                    crate::notifier::clear(&app);
                 }
-                suppressed = false;
+                state = State::default();
                 continue;
-            }
-
-            let trigger = cfg.mem_warn_percent as f64;
-            let recover = (trigger - HYSTERESIS).max(1.0);
-
-            if DISMISS_REQUESTED.swap(false, Ordering::Relaxed) {
-                suppressed = true;
-                if showing {
-                    hide(&app);
-                    showing = false;
-                }
             }
 
             sys.refresh_memory();
@@ -60,48 +50,37 @@ pub fn spawn(app: AppHandle) {
                 continue;
             }
             let pct = sys.used_memory() as f64 / total as f64 * 100.0;
+            let trigger = cfg.mem_warn_percent as f64;
 
-            if pct >= trigger {
-                if !suppressed {
-                    let (proc_name, proc_mb) = top_process(&mut sys);
-                    if !showing {
-                        show(&app);
-                        showing = true;
+            let was_active = state.active;
+            let tick = Tick {
+                pct,
+                trigger,
+                recover: (trigger - HYSTERESIS).max(1.0),
+                since_start: started.elapsed().as_secs_f64(),
+                since_fire: last_fire.elapsed().as_secs_f64(),
+                pulse_enabled: cfg.mem_warn_pulse_enabled,
+                escalate_enabled: cfg.mem_warn_escalate_enabled,
+                dismiss: DISMISS_REQUESTED.swap(false, std::sync::atomic::Ordering::Relaxed),
+            };
+
+            match advance(&mut state, &tick) {
+                Action::Nothing => {}
+                Action::Clear => crate::notifier::clear(&app),
+                Action::Fire { pulse, escalate } => {
+                    if !was_active {
+                        started = Instant::now();
                     }
-                    let _ = app.emit_to(
-                        "memwarn",
-                        "mem-warn",
-                        serde_json::json!({
-                            "percent": pct.round() as i64,
-                            "proc": proc_name,
-                            "proc_mb": proc_mb,
-                            "color": cfg.mem_warn_color,
-                        }),
+                    last_fire = Instant::now();
+                    let (proc_name, proc_mb) = top_process(&mut sys);
+                    crate::notifier::fire(
+                        &app, &cfg, pct.round() as i64, &proc_name, proc_mb, escalate,
                     );
-                }
-            } else if pct < recover {
-                suppressed = false;
-                if showing {
-                    hide(&app);
-                    showing = false;
+                    let _ = pulse; // pulse index currently informational
                 }
             }
-            // Between `recover` and `trigger`: hold current state (hysteresis band).
         }
     });
-}
-
-fn show(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window("memwarn") {
-        let _ = w.show();
-        let _ = w.set_always_on_top(true);
-    }
-}
-
-fn hide(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window("memwarn") {
-        let _ = w.hide();
-    }
 }
 
 /// The single process using the most memory (name, MB) — the likely culprit to close.

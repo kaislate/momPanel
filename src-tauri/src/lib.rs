@@ -58,6 +58,19 @@ fn dismiss_mem_warn(app: tauri::AppHandle) {
     }
 }
 
+/// Bring the main momPanel window to the foreground (escalation modal's "Open" button).
+#[tauri::command]
+fn open_main_window(app: tauri::AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
+    if let Some(m) = app.get_webview_window("memwarn") {
+        let _ = m.hide();
+    }
+}
+
 #[tauri::command]
 async fn read_weather(zip: String) -> serde_json::Value {
     if !is_valid_zip(&zip) {
@@ -261,29 +274,24 @@ pub fn run() {
                 tauri::async_runtime::spawn(check_for_update(handle));
             }
 
-            // Pre-create the always-on-top high-memory warning banner (hidden until a
-            // spike). Keeping it as a persistent hidden window means the watcher only
-            // shows/hides it, never builds a window while memory is under pressure.
+            // Pre-create the escalation modal (hidden until a memory spike). Keeping it
+            // as a persistent hidden window means the watcher only shows/hides it, never
+            // builds a window while memory is under pressure.
             let warn = WebviewWindowBuilder::new(
                 app.handle(),
                 "memwarn",
                 WebviewUrl::App("warn.html".into()),
             )
             .title("Memory warning")
-            .inner_size(480.0, 92.0)
+            .inner_size(460.0, 200.0)
             .resizable(false)
             .decorations(false)
             .always_on_top(true)
             .skip_taskbar(true)
+            .center()
             .visible(false)
             .focused(false)
             .build()?;
-            // Park it at the top-center of the primary monitor.
-            if let Ok(Some(mon)) = warn.primary_monitor() {
-                let screen_w = mon.size().width as f64 / mon.scale_factor();
-                let x = ((screen_w - 480.0) / 2.0).max(0.0);
-                let _ = warn.set_position(tauri::LogicalPosition::new(x, 24.0));
-            }
             let _ = warn.set_visible_on_all_workspaces(true);
 
             // Closing the MAIN window quits the app (the hidden banner window would
@@ -314,6 +322,7 @@ pub fn run() {
             get_autostart,
             set_autostart,
             dismiss_mem_warn,
+            open_main_window,
             shortcuts::open_settings
         ])
         .run(tauri::generate_context!())

@@ -49,6 +49,22 @@ fn is_valid_hex_color(s: &str) -> bool {
     b.len() == 7 && b[0] == b'#' && b[1..].iter().all(|c| c.is_ascii_hexdigit())
 }
 
+/// Clamp a volume floor to the 0.0–1.0 range.
+fn clamp_floor(v: f64) -> f32 {
+    v.clamp(0.0, 1.0) as f32
+}
+
+#[cfg(test)]
+mod alert_cfg_tests {
+    use super::clamp_floor;
+    #[test]
+    fn floor_clamps() {
+        assert_eq!(clamp_floor(1.5), 1.0);
+        assert_eq!(clamp_floor(-0.2), 0.0);
+        assert_eq!(clamp_floor(0.6), 0.6);
+    }
+}
+
 /// Hide the high-memory banner now and suppress it until memory recovers.
 #[tauri::command]
 fn dismiss_mem_warn(app: tauri::AppHandle) {
@@ -147,6 +163,27 @@ fn set_config(cfg: serde_json::Value) -> Result<AppConfig, String> {
         if is_valid_hex_color(s) {
             current.mem_warn_color = s.to_uppercase();
         }
+    }
+    if let Some(b) = cfg.get("mem_warn_sound_enabled").and_then(|v| v.as_bool()) {
+        current.mem_warn_sound_enabled = b;
+    }
+    if let Some(s) = cfg.get("mem_warn_sound").and_then(|v| v.as_str()) {
+        // Accept a short sound id (letters, digits, hyphen) to avoid path injection.
+        if !s.is_empty() && s.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-') {
+            current.mem_warn_sound = s.to_string();
+        }
+    }
+    if let Some(n) = cfg.get("mem_warn_volume_floor").and_then(|v| v.as_f64()) {
+        current.mem_warn_volume_floor = clamp_floor(n);
+    }
+    if let Some(b) = cfg.get("mem_warn_speech_enabled").and_then(|v| v.as_bool()) {
+        current.mem_warn_speech_enabled = b;
+    }
+    if let Some(b) = cfg.get("mem_warn_pulse_enabled").and_then(|v| v.as_bool()) {
+        current.mem_warn_pulse_enabled = b;
+    }
+    if let Some(b) = cfg.get("mem_warn_escalate_enabled").and_then(|v| v.as_bool()) {
+        current.mem_warn_escalate_enabled = b;
     }
     config::save(&current)?;
     Ok(current)

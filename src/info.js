@@ -54,6 +54,18 @@ export async function openInfo() {
     `<select data-mempct>${pctOptions}</select></label>` +
     `<label class="info-row"><span>Warning color</span>` +
     `<input type="color" data-memcolor value="${warnColor}" /></label>` +
+    `<label class="info-auto"><input type="checkbox" data-memsound ${
+      cfg.mem_warn_sound_enabled ? "checked" : ""
+    } /><span>Play an alert sound</span></label>` +
+    `<label class="info-auto"><input type="checkbox" data-memspeech ${
+      cfg.mem_warn_speech_enabled ? "checked" : ""
+    } /><span>Speak the warning aloud</span></label>` +
+    `<label class="info-auto"><input type="checkbox" data-mempulse ${
+      cfg.mem_warn_pulse_enabled ? "checked" : ""
+    } /><span>Repeat until resolved</span></label>` +
+    `<label class="info-auto"><input type="checkbox" data-memescalate ${
+      cfg.mem_warn_escalate_enabled ? "checked" : ""
+    } /><span>Pop a dialog if ignored</span></label>` +
     `<button class="tile-btn info-close" data-action="close">Close</button>` +
     `</div></div>`;
 
@@ -107,5 +119,17 @@ export async function openInfo() {
 
   root.querySelector("[data-memcolor]").addEventListener("change", (e) => {
     setConfig({ mem_warn_color: e.target.value });
+  });
+  root.querySelector("[data-memsound]").addEventListener("change", (e) => {
+    setConfig({ mem_warn_sound_enabled: e.target.checked });
+  });
+  root.querySelector("[data-memspeech]").addEventListener("change", (e) => {
+    setConfig({ mem_warn_speech_enabled: e.target.checked });
+  });
+  root.querySelector("[data-mempulse]").addEventListener("change", (e) => {
+    setConfig({ mem_warn_pulse_enabled: e.target.checked });
+  });
+  root.querySelector("[data-memescalate]").addEventListener("change", (e) => {
+    setConfig({ mem_warn_escalate_enabled: e.target.checked });
   });
 }

@@ -9,7 +9,7 @@ pub fn spoken_message(proc_name: &str, proc_mb: u64) -> String {
     }
     if proc_mb >= 1024 {
         let gb = (proc_mb as f64 / 1024.0 * 10.0).round() / 10.0;
-        format!("Memory usage high. {proc_name} is using {gb} gigabytes.")
+        format!("Memory usage high. {proc_name} is using {gb:.1} gigabytes.")
     } else {
         format!("Memory usage high. {proc_name} is using {proc_mb} megabytes.")
     }
@@ -57,5 +57,18 @@ mod tests {
     #[test]
     fn volume_floor_never_lowers() {
         assert_eq!(volume_target(0.80, 0.60), 0.80);
+    }
+
+    #[test]
+    fn message_rounds_exact_gb_to_one_decimal() {
+        assert_eq!(
+            spoken_message("app", 1024),
+            "Memory usage high. app is using 1.0 gigabytes."
+        );
+    }
+
+    #[test]
+    fn volume_floor_keeps_equal() {
+        assert_eq!(volume_target(0.60, 0.60), 0.60);
     }
 }

@@ -15,6 +15,14 @@ fn default_true() -> bool {
     true
 }
 
+fn default_mem_pct() -> f32 {
+    85.0
+}
+
+fn default_mem_color() -> String {
+    "#D97706".into() // amber
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AppConfig {
     #[serde(default)]
@@ -39,6 +47,15 @@ pub struct AppConfig {
     /// The app version we last showed a "what's new" note for (to detect updates).
     #[serde(default)]
     pub last_seen_version: String,
+    /// Show an always-on-top banner when RAM usage crosses `mem_warn_percent`.
+    #[serde(default = "default_true")]
+    pub mem_warn_enabled: bool,
+    /// RAM used-% that triggers the high-memory warning banner. One of 70/75/80/85/90.
+    #[serde(default = "default_mem_pct")]
+    pub mem_warn_percent: f32,
+    /// Banner background color as `#RRGGBB` (text color is auto-contrasted).
+    #[serde(default = "default_mem_color")]
+    pub mem_warn_color: String,
 }
 
 impl Default for AppConfig {
@@ -52,6 +69,9 @@ impl Default for AppConfig {
             hide_help: true,
             autostart_initialized: false,
             last_seen_version: String::new(),
+            mem_warn_enabled: true,
+            mem_warn_percent: 85.0,
+            mem_warn_color: default_mem_color(),
         }
     }
 }

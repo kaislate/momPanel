@@ -35,6 +35,9 @@ export async function getConfig() {
       auto_update: true,
       hide_help: true,
       last_seen_version: "",
+      mem_warn_enabled: true,
+      mem_warn_percent: 85,
+      mem_warn_color: "#D97706",
     };
   }
 }

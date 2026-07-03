@@ -2,6 +2,26 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.4.0 — 2026-07-03
+
+### Added
+- **High-memory warning banner.** A background watcher (`src-tauri/src/memwatch.rs`)
+  polls RAM every 2s on its own thread — independent of the frontend tile loop, which
+  pauses when the window is hidden — and reveals a pre-created, always-on-top, borderless
+  banner window (`memwarn`, `src/warn.html` + `src/warn.js`) when usage crosses the
+  threshold. Hidden again on recovery, with a 7-point hysteresis band to prevent flicker.
+  A **Dismiss** button (`dismiss_mem_warn` command) suppresses it until memory recovers
+  and spikes again. The banner names the biggest memory consumer (top process by RSS via
+  sysinfo) so the user knows what to close.
+- **Settings** (About panel): a "Warn me about high memory" toggle, a threshold selector
+  (70–90% in 5% steps), and a banner **color** picker (text auto-contrasts). Persisted as
+  `mem_warn_enabled` / `mem_warn_percent` / `mem_warn_color` in config.
+- Capability `memwarn` scoping the banner window (event + window hide/close).
+
+### Changed
+- Closing the **main** window now explicitly quits the app (the persistent hidden banner
+  window would otherwise keep the process alive).
+
 ## 0.3.5 — 2026-06-21
 
 ### Added

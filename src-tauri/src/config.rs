@@ -23,6 +23,14 @@ fn default_mem_color() -> String {
     "#D97706".into() // amber
 }
 
+fn default_mem_sound() -> String {
+    "suspend-error".into()
+}
+
+fn default_volume_floor() -> f32 {
+    0.60
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AppConfig {
     #[serde(default)]
@@ -56,6 +64,24 @@ pub struct AppConfig {
     /// Banner background color as `#RRGGBB` (text color is auto-contrasted).
     #[serde(default = "default_mem_color")]
     pub mem_warn_color: String,
+    /// Play an alert tone when the warning fires.
+    #[serde(default = "default_true")]
+    pub mem_warn_sound_enabled: bool,
+    /// Alert tone id (freedesktop sound name, e.g. "suspend-error").
+    #[serde(default = "default_mem_sound")]
+    pub mem_warn_sound: String,
+    /// Volume floor 0.0–1.0 forced only while the alert plays (never lowers).
+    #[serde(default = "default_volume_floor")]
+    pub mem_warn_volume_floor: f32,
+    /// Speak the warning (naming the top process) via speech-dispatcher.
+    #[serde(default = "default_true")]
+    pub mem_warn_speech_enabled: bool,
+    /// Re-fire the alert every ~30 s while usage stays critical.
+    #[serde(default = "default_true")]
+    pub mem_warn_pulse_enabled: bool,
+    /// Escalate to a centered modal dialog if the alert is ignored.
+    #[serde(default = "default_true")]
+    pub mem_warn_escalate_enabled: bool,
 }
 
 impl Default for AppConfig {
@@ -72,6 +98,12 @@ impl Default for AppConfig {
             mem_warn_enabled: true,
             mem_warn_percent: 85.0,
             mem_warn_color: default_mem_color(),
+            mem_warn_sound_enabled: true,
+            mem_warn_sound: default_mem_sound(),
+            mem_warn_volume_floor: 0.60,
+            mem_warn_speech_enabled: true,
+            mem_warn_pulse_enabled: true,
+            mem_warn_escalate_enabled: true,
         }
     }
 }
@@ -120,5 +152,23 @@ mod tests {
         let c: AppConfig = serde_json::from_str(r#"{"zip":"90210"}"#).unwrap();
         assert_eq!(c.zip.as_deref(), Some("90210"));
         assert_eq!(c.clock_mode, "digital");
+    }
+
+    #[test]
+    fn alert_channel_defaults() {
+        let c = AppConfig::default();
+        assert!(c.mem_warn_sound_enabled);
+        assert_eq!(c.mem_warn_sound, "suspend-error");
+        assert_eq!(c.mem_warn_volume_floor, 0.60);
+        assert!(c.mem_warn_speech_enabled);
+        assert!(c.mem_warn_pulse_enabled);
+        assert!(c.mem_warn_escalate_enabled);
+    }
+
+    #[test]
+    fn alert_channels_default_on_partial_json() {
+        let c: AppConfig = serde_json::from_str(r#"{"mem_warn_percent":80}"#).unwrap();
+        assert_eq!(c.mem_warn_sound, "suspend-error");
+        assert!(c.mem_warn_speech_enabled);
     }
 }

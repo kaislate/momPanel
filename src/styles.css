@@ -9,6 +9,10 @@
   --ok: #5bd6a0;
   --warn: #ffb347;
   --bad: #ff5d5d;
+  --gauge-ok: #5bd6a0;
+  --gauge-warn: #ffb347;
+  --gauge-bad: #ff5d5d;
+  --gauge-track: #2a3146;
   font-family: system-ui, "Segoe UI", Inter, sans-serif;
   color: var(--ink);
   /* Base size driven by the "make everything bigger" control. All tile sizing is in

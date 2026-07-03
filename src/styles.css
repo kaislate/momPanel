@@ -13,6 +13,7 @@
   --gauge-warn: #ffb347;
   --gauge-bad: #ff5d5d;
   --gauge-track: #2a3146;
+  --bg-glow: #1a2138;
   font-family: system-ui, "Segoe UI", Inter, sans-serif;
   color: var(--ink);
   /* Base size driven by the "make everything bigger" control. All tile sizing is in
@@ -38,7 +39,7 @@ html,
 body {
   margin: 0;
   height: 100%;
-  background: radial-gradient(1200px 800px at 30% -10%, #1a2138 0%, var(--bg) 60%),
+  background: radial-gradient(1200px 800px at 30% -10%, var(--bg-glow) 0%, var(--bg) 60%),
     var(--bg);
   overflow: hidden;
   user-select: none;

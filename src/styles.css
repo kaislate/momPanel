@@ -570,6 +570,36 @@ body.help-hidden .tile-help {
   flex: 1;
   min-width: 0; /* allow the label text to wrap instead of overflowing */
 }
+/* Settings rows with a control on the right (threshold select, color picker). */
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  margin-top: 6px;
+  font-size: 0.95rem;
+  color: var(--ink-dim);
+  width: 100%;
+  text-align: left;
+}
+.info-row select {
+  font: inherit;
+  color: var(--ink);
+  background: #2c3450;
+  border: 1px solid #3a4566;
+  border-radius: 8px;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+.info-row input[type="color"] {
+  width: 42px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #3a4566;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+}
 .info-close {
   width: 100%;
   background: #2c3450;

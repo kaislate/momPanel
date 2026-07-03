@@ -1,8 +1,10 @@
 mod collectors;
 mod config;
+mod memwatch;
 mod shortcuts;
 
 use config::AppConfig;
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 // Dispatch a simple (no-arg) tile collector by name. Unknown names -> "unavailable".
 // Collectors shell out to system tools (nmcli/lpstat/wpctl) or do a TCP probe, which
@@ -38,6 +40,21 @@ fn read_tile_sync(name: &str) -> serde_json::Value {
 /// modal check is UX only and cannot be relied upon (any IPC caller can reach here).
 fn is_valid_zip(zip: &str) -> bool {
     zip.len() == 5 && zip.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// A `#RRGGBB` hex color (the only form the color picker emits).
+fn is_valid_hex_color(s: &str) -> bool {
+    let b = s.as_bytes();
+    b.len() == 7 && b[0] == b'#' && b[1..].iter().all(|c| c.is_ascii_hexdigit())
+}
+
+/// Hide the high-memory banner now and suppress it until memory recovers.
+#[tauri::command]
+fn dismiss_mem_warn(app: tauri::AppHandle) {
+    memwatch::request_dismiss();
+    if let Some(w) = app.get_webview_window("memwarn") {
+        let _ = w.hide();
+    }
 }
 
 #[tauri::command]
@@ -100,6 +117,22 @@ fn set_config(cfg: serde_json::Value) -> Result<AppConfig, String> {
     }
     if let Some(s) = cfg.get("last_seen_version").and_then(|v| v.as_str()) {
         current.last_seen_version = s.to_string();
+    }
+    if let Some(b) = cfg.get("mem_warn_enabled").and_then(|v| v.as_bool()) {
+        current.mem_warn_enabled = b;
+    }
+    // Snap to the allowed 70..=90 in steps of 5; ignore anything out of range.
+    if let Some(n) = cfg.get("mem_warn_percent").and_then(|v| v.as_f64()) {
+        let snapped = (n / 5.0).round() * 5.0;
+        if (70.0..=90.0).contains(&snapped) {
+            current.mem_warn_percent = snapped as f32;
+        }
+    }
+    // Accept only a well-formed #RRGGBB hex color.
+    if let Some(s) = cfg.get("mem_warn_color").and_then(|v| v.as_str()) {
+        if is_valid_hex_color(s) {
+            current.mem_warn_color = s.to_uppercase();
+        }
     }
     config::save(&current)?;
     Ok(current)
@@ -226,6 +259,46 @@ pub fn run() {
                 let handle = app.handle().clone();
                 tauri::async_runtime::spawn(check_for_update(handle));
             }
+
+            // Pre-create the always-on-top high-memory warning banner (hidden until a
+            // spike). Keeping it as a persistent hidden window means the watcher only
+            // shows/hides it, never builds a window while memory is under pressure.
+            let warn = WebviewWindowBuilder::new(
+                app.handle(),
+                "memwarn",
+                WebviewUrl::App("warn.html".into()),
+            )
+            .title("Memory warning")
+            .inner_size(480.0, 92.0)
+            .resizable(false)
+            .decorations(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .visible(false)
+            .focused(false)
+            .build()?;
+            // Park it at the top-center of the primary monitor.
+            if let Ok(Some(mon)) = warn.primary_monitor() {
+                let screen_w = mon.size().width as f64 / mon.scale_factor();
+                let x = ((screen_w - 480.0) / 2.0).max(0.0);
+                let _ = warn.set_position(tauri::LogicalPosition::new(x, 24.0));
+            }
+            let _ = warn.set_visible_on_all_workspaces(true);
+
+            // Closing the MAIN window quits the app (the hidden banner window would
+            // otherwise keep the process alive after the panel is closed).
+            if let Some(main) = app.get_webview_window("main") {
+                let h = app.handle().clone();
+                main.on_window_event(move |e| {
+                    if let tauri::WindowEvent::CloseRequested { .. } = e {
+                        h.exit(0);
+                    }
+                });
+            }
+
+            // Start the background RAM watcher (runs even when the panel is hidden).
+            memwatch::spawn(app.handle().clone());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -239,6 +312,7 @@ pub fn run() {
             check_updates,
             get_autostart,
             set_autostart,
+            dismiss_mem_warn,
             shortcuts::open_settings
         ])
         .run(tauri::generate_context!())

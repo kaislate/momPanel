@@ -24,6 +24,13 @@ export async function openInfo() {
     getAutostart(),
   ]);
 
+  // Threshold choices: 70–90% in 5% steps.
+  const curPct = Math.round(cfg.mem_warn_percent || 85);
+  const pctOptions = [70, 75, 80, 85, 90]
+    .map((v) => `<option value="${v}" ${curPct === v ? "selected" : ""}>${v}%</option>`)
+    .join("");
+  const warnColor = cfg.mem_warn_color || "#D97706";
+
   root.innerHTML =
     `<div class="modal-backdrop"><div class="modal-card info-card">` +
     `<div class="info-logo">${logoSvg(96)}</div>` +
@@ -40,6 +47,13 @@ export async function openInfo() {
     `<label class="info-auto"><input type="checkbox" data-auto ${
       cfg.auto_update ? "checked" : ""
     } /><span>Update automatically</span></label>` +
+    `<label class="info-auto"><input type="checkbox" data-memwarn ${
+      cfg.mem_warn_enabled ? "checked" : ""
+    } /><span>Warn me about high memory</span></label>` +
+    `<label class="info-row"><span>Warn when memory reaches</span>` +
+    `<select data-mempct>${pctOptions}</select></label>` +
+    `<label class="info-row"><span>Warning color</span>` +
+    `<input type="color" data-memcolor value="${warnColor}" /></label>` +
     `<button class="tile-btn info-close" data-action="close">Close</button>` +
     `</div></div>`;
 
@@ -81,5 +95,17 @@ export async function openInfo() {
 
   root.querySelector("[data-startup]").addEventListener("change", (e) => {
     setAutostart(e.target.checked);
+  });
+
+  root.querySelector("[data-memwarn]").addEventListener("change", (e) => {
+    setConfig({ mem_warn_enabled: e.target.checked });
+  });
+
+  root.querySelector("[data-mempct]").addEventListener("change", (e) => {
+    setConfig({ mem_warn_percent: Number(e.target.value) });
+  });
+
+  root.querySelector("[data-memcolor]").addEventListener("change", (e) => {
+    setConfig({ mem_warn_color: e.target.value });
   });
 }

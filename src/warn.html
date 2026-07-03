@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Memory warning</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        user-select: none;
+        cursor: default;
+      }
+      /* The whole window IS the banner. Background color is set at runtime from the
+         user's chosen color; these are just the fallback amber + layout. */
+      #banner {
+        box-sizing: border-box;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 16px;
+        background: #d97706;
+        color: #fff;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+      }
+      #icon {
+        font-size: 30px;
+        line-height: 1;
+        flex: 0 0 auto;
+      }
+      #text {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      #headline {
+        font-size: 15px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #sub {
+        font-size: 13px;
+        opacity: 0.95;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #dismiss {
+        flex: 0 0 auto;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        color: inherit;
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        border-radius: 8px;
+        padding: 7px 14px;
+        cursor: pointer;
+      }
+      #dismiss:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="banner" role="alert">
+      <div id="icon">⚠️</div>
+      <div id="text">
+        <div id="headline">High memory usage</div>
+        <div id="sub">Your computer may become slow or unresponsive.</div>
+      </div>
+      <button id="dismiss" type="button">Dismiss</button>
+    </div>
+    <script type="module" src="warn.js"></script>
+  </body>
+</html>

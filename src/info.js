@@ -66,6 +66,24 @@ export async function openInfo() {
     `<label class="info-auto"><input type="checkbox" data-memescalate ${
       cfg.mem_warn_escalate_enabled ? "checked" : ""
     } /><span>Pop a dialog if ignored</span></label>` +
+    `<label class="info-row"><span>Alert sound</span>` +
+    `<select data-memsoundchoice>` +
+    [
+      ["suspend-error", "Alarm (default)"],
+      ["dialog-error", "Error"],
+      ["dialog-warning", "Warning"],
+      ["bell", "Bell"],
+      ["alarm-clock-elapsed", "Alarm clock"],
+    ]
+      .map(([v, l]) => `<option value="${v}" ${cfg.mem_warn_sound === v ? "selected" : ""}>${l}</option>`)
+      .join("") +
+    `</select></label>` +
+    `<label class="info-row"><span>Minimum alert volume</span>` +
+    `<select data-memfloor>` +
+    [50, 60, 70, 80, 90, 100]
+      .map((v) => `<option value="${v / 100}" ${Math.round((cfg.mem_warn_volume_floor || 0.6) * 100) === v ? "selected" : ""}>${v}%</option>`)
+      .join("") +
+    `</select></label>` +
     `<button class="tile-btn info-close" data-action="close">Close</button>` +
     `</div></div>`;
 
@@ -131,5 +149,11 @@ export async function openInfo() {
   });
   root.querySelector("[data-memescalate]").addEventListener("change", (e) => {
     setConfig({ mem_warn_escalate_enabled: e.target.checked });
+  });
+  root.querySelector("[data-memsoundchoice]").addEventListener("change", (e) => {
+    setConfig({ mem_warn_sound: e.target.value });
+  });
+  root.querySelector("[data-memfloor]").addEventListener("change", (e) => {
+    setConfig({ mem_warn_volume_floor: Number(e.target.value) });
   });
 }

@@ -3,9 +3,10 @@
 export const CHANGELOG = {
   "0.4.0": {
     changes: [
-      "🚨 momPanel now warns you *before* your computer runs low on memory. A banner pops up over everything — even when momPanel is minimized — so a runaway app can't quietly freeze your PC.",
-      "💡 The warning tells you which app is using the most memory, so you know exactly what to close.",
-      "🎚️ In the About window you can choose when the warning appears (from 70% to 90% full) and pick the banner's color.",
+      "🚨 momPanel now warns you *before* your computer runs low on memory — with an alert sound and a spoken heads-up, even when momPanel is minimized, so a runaway app can't quietly freeze your PC.",
+      "💡 The warning names the app using the most memory, so you know exactly what to close. If you don't act, it keeps reminding you and finally pops up a dialog.",
+      "🎨 New — make momPanel your own! Pick a ready-made theme (Midnight, Warm, High-contrast) or choose your own colors for the accent, background, tiles, and the usage gauges, all in the About window.",
+      "🎚️ You can fine-tune the memory warning too: when it appears (70–90% full), its sound, its volume, and its color.",
     ],
   },
   "0.3.5": {

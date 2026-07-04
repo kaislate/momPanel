@@ -1,3 +1,4 @@
+import { applyTheme } from "./theme.js";
 import {
   registerTile,
   mountTiles,
@@ -24,6 +25,9 @@ async function checkWhatsNew() {
 }
 
 async function boot() {
+  // Apply saved colors before anything renders (prevents a flash of the default theme).
+  applyTheme((await getConfig()).theme);
+
   // Apply saved size + hide-controls state before tiles render (avoids a flash).
   const chrome = await initChrome();
 

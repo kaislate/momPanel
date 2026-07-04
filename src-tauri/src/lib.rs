@@ -1,6 +1,7 @@
 mod collectors;
 mod config;
 mod memwatch;
+mod notifier;
 mod shortcuts;
 
 use config::AppConfig;
@@ -48,12 +49,59 @@ fn is_valid_hex_color(s: &str) -> bool {
     b.len() == 7 && b[0] == b'#' && b[1..].iter().all(|c| c.is_ascii_hexdigit())
 }
 
-/// Hide the high-memory banner now and suppress it until memory recovers.
+/// The preset names the UI may send (plus "custom" for edited palettes).
+fn valid_preset(p: &str) -> bool {
+    matches!(p, "midnight" | "warm" | "high-contrast" | "custom")
+}
+
+/// Clamp a volume floor to the 0.0–1.0 range.
+fn clamp_floor(v: f64) -> f32 {
+    v.clamp(0.0, 1.0) as f32
+}
+
+#[cfg(test)]
+mod alert_cfg_tests {
+    use super::clamp_floor;
+    #[test]
+    fn floor_clamps() {
+        assert_eq!(clamp_floor(1.5), 1.0);
+        assert_eq!(clamp_floor(-0.2), 0.0);
+        assert_eq!(clamp_floor(0.6), 0.6);
+    }
+}
+
+#[cfg(test)]
+mod theme_cfg_tests {
+    use super::valid_preset;
+    #[test]
+    fn known_presets_only() {
+        assert!(valid_preset("midnight"));
+        assert!(valid_preset("warm"));
+        assert!(valid_preset("high-contrast"));
+        assert!(valid_preset("custom"));
+        assert!(!valid_preset("rainbow"));
+    }
+}
+
+/// Hide the high-memory escalation modal now and suppress it until memory recovers.
 #[tauri::command]
 fn dismiss_mem_warn(app: tauri::AppHandle) {
     memwatch::request_dismiss();
     if let Some(w) = app.get_webview_window("memwarn") {
         let _ = w.hide();
+    }
+}
+
+/// Bring the main momPanel window to the foreground (escalation modal's "Open" button).
+#[tauri::command]
+fn open_main_window(app: tauri::AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
+    if let Some(m) = app.get_webview_window("memwarn") {
+        let _ = m.hide();
     }
 }
 
@@ -133,6 +181,47 @@ fn set_config(cfg: serde_json::Value) -> Result<AppConfig, String> {
         if is_valid_hex_color(s) {
             current.mem_warn_color = s.to_uppercase();
         }
+    }
+    if let Some(b) = cfg.get("mem_warn_sound_enabled").and_then(|v| v.as_bool()) {
+        current.mem_warn_sound_enabled = b;
+    }
+    if let Some(s) = cfg.get("mem_warn_sound").and_then(|v| v.as_str()) {
+        // Accept a short sound id (letters, digits, hyphen) to avoid path injection.
+        if !s.is_empty() && s.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-') {
+            current.mem_warn_sound = s.to_string();
+        }
+    }
+    if let Some(n) = cfg.get("mem_warn_volume_floor").and_then(|v| v.as_f64()) {
+        current.mem_warn_volume_floor = clamp_floor(n);
+    }
+    if let Some(b) = cfg.get("mem_warn_speech_enabled").and_then(|v| v.as_bool()) {
+        current.mem_warn_speech_enabled = b;
+    }
+    if let Some(b) = cfg.get("mem_warn_pulse_enabled").and_then(|v| v.as_bool()) {
+        current.mem_warn_pulse_enabled = b;
+    }
+    if let Some(b) = cfg.get("mem_warn_escalate_enabled").and_then(|v| v.as_bool()) {
+        current.mem_warn_escalate_enabled = b;
+    }
+    if let Some(theme) = cfg.get("theme").and_then(|v| v.as_object()) {
+        let hex = |k: &str, cur: &mut String| {
+            if let Some(s) = theme.get(k).and_then(|v| v.as_str()) {
+                if is_valid_hex_color(s) {
+                    *cur = s.to_uppercase();
+                }
+            }
+        };
+        if let Some(p) = theme.get("preset").and_then(|v| v.as_str()) {
+            if valid_preset(p) {
+                current.theme.preset = p.to_string();
+            }
+        }
+        hex("accent", &mut current.theme.accent);
+        hex("bg", &mut current.theme.bg);
+        hex("tile", &mut current.theme.tile);
+        hex("gauge_ok", &mut current.theme.gauge_ok);
+        hex("gauge_warn", &mut current.theme.gauge_warn);
+        hex("gauge_bad", &mut current.theme.gauge_bad);
     }
     config::save(&current)?;
     Ok(current)
@@ -260,29 +349,24 @@ pub fn run() {
                 tauri::async_runtime::spawn(check_for_update(handle));
             }
 
-            // Pre-create the always-on-top high-memory warning banner (hidden until a
-            // spike). Keeping it as a persistent hidden window means the watcher only
-            // shows/hides it, never builds a window while memory is under pressure.
+            // Pre-create the escalation modal (hidden until a memory spike). Keeping it
+            // as a persistent hidden window means the watcher only shows/hides it, never
+            // builds a window while memory is under pressure.
             let warn = WebviewWindowBuilder::new(
                 app.handle(),
                 "memwarn",
                 WebviewUrl::App("warn.html".into()),
             )
             .title("Memory warning")
-            .inner_size(480.0, 92.0)
+            .inner_size(460.0, 200.0)
             .resizable(false)
             .decorations(false)
             .always_on_top(true)
             .skip_taskbar(true)
+            .center()
             .visible(false)
             .focused(false)
             .build()?;
-            // Park it at the top-center of the primary monitor.
-            if let Ok(Some(mon)) = warn.primary_monitor() {
-                let screen_w = mon.size().width as f64 / mon.scale_factor();
-                let x = ((screen_w - 480.0) / 2.0).max(0.0);
-                let _ = warn.set_position(tauri::LogicalPosition::new(x, 24.0));
-            }
             let _ = warn.set_visible_on_all_workspaces(true);
 
             // Closing the MAIN window quits the app (the hidden banner window would
@@ -313,6 +397,7 @@ pub fn run() {
             get_autostart,
             set_autostart,
             dismiss_mem_warn,
+            open_main_window,
             shortcuts::open_settings
         ])
         .run(tauri::generate_context!())

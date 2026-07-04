@@ -2,6 +2,17 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.4.1 — 2026-07-04
+
+### Fixed
+- **About panel layout.** The panel now widens to 480px and scrolls (`max-height: 85vh`),
+  so the settings added in 0.4.0 (alert + Theme) are reachable — the Theme section was
+  previously below the fold in a fixed 320px, non-scrolling card. Also fixed the checkbox
+  rows: the generic `.modal-card input` rule (for the first-run ZIP field) was stretching
+  `.info-auto` checkboxes to 100% width and pushing their labels off-panel. Scoped
+  overrides restore correct sizing: `.modal-card.info-card` (width + scroll),
+  `.info-card input[type="checkbox"]`, and `margin: 0` on the `.info-row` color swatch.
+
 ## 0.4.0 — 2026-07-03
 
 ### Added

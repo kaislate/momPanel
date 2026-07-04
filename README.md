@@ -20,6 +20,8 @@ momPanel shows the things that actually matter — at a glance, in plain languag
 ## ✨ Highlights
 
 - 🖼️ **Graphics‑first tiles** — gauges, icons, and big readable numbers instead of walls of text.
+- 🚨 **Low‑memory guardian** — warns you *before* your computer runs low on memory, with an alert sound and a spoken heads‑up, and names the app hogging memory so you know what to close — even when momPanel is minimized.
+- 🎨 **Make it yours** — pick a ready‑made theme (Midnight, Warm, High‑contrast) or set your own colors for the accent, background, tiles, and gauges.
 - 🪟 **Frameless & fixed** — can't be accidentally moved, resized, or closed.
 - 🗣️ **Plain language** — "Plenty of room", "You're connected to the internet", "Out of paper".
 - ❓ **Per‑tile help** — a "?" on each tile pops a simple explanation of what it means.
@@ -36,7 +38,7 @@ momPanel shows the things that actually matter — at a glance, in plain languag
 | 🕒 **Clock** | Time, as a numbers display or an analog face (your choice) |
 | 📅 **Date** | Today + a full month calendar with today highlighted |
 | 🧠 **CPU** | How hard the processor is working right now |
-| 🧩 **Memory** | How much short‑term memory (RAM) is in use |
+| 🧩 **Memory** | How much short‑term memory (RAM) is in use — with an optional alert before it runs out |
 | 💾 **Storage** | How full your drive is — tap to flip between % full and % free |
 | 📶 **Wi‑Fi** | Network name and signal strength |
 | 🌐 **Internet** | A clear Online / Offline indicator |
@@ -45,6 +47,16 @@ momPanel shows the things that actually matter — at a glance, in plain languag
 | ⛅ **Weather** | Now + a 5‑day forecast (°F) for your ZIP |
 
 > 🐧 Wi‑Fi, Printers, and Volume read live system info on **Linux** (the primary target). On Windows they show a friendly "not available here" — Windows is for development/testing.
+
+## 🚨 Low‑memory guardian
+
+momPanel keeps an eye on memory in the background — even when it's minimized. Before your computer runs so low it could freeze, it gets your attention with a **critical notification, an alert sound, and a spoken warning** that names the app using the most memory (e.g. *"Memory usage high. Opera is using 4.3 gigabytes."*). If you don't act, it keeps reminding you and finally pops up a dialog. It's all adjustable in **ℹ️ About** — when it triggers (70–90% full), the sound and volume, speech on/off, and whether it repeats or escalates.
+
+> 🐧 The alert sound, speech, and notification are Linux features (the primary target). On Windows this is a follow‑up.
+
+## 🎨 Make it yours
+
+Prefer a warmer look, or need higher contrast? Open **ℹ️ About → Theme** to pick a preset (**Midnight**, **Warm**, **High‑contrast**) or choose your own colors for the accent, background, tiles, and the usage gauges. Text automatically stays readable on whatever background you pick.
 
 ## 🖼️ Screenshots
 

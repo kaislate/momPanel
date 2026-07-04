@@ -3,7 +3,7 @@
 //! Linux-only and degrade gracefully when a tool is absent.
 
 use crate::config::AppConfig;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(target_os = "linux")]
 use std::process::Command;
@@ -41,7 +41,7 @@ pub fn fire(app: &AppHandle, cfg: &AppConfig, percent: i64, proc_name: &str, pro
         speak(&body);
     }
     if escalate {
-        show_modal(app);
+        show_modal(app, &cfg.mem_warn_color);
     }
 }
 
@@ -92,7 +92,7 @@ fn current_volume() -> Option<f32> {
 #[cfg(target_os = "linux")]
 fn set_volume(v: f32) {
     let _ = Command::new("wpctl")
-        .args(["set-volume", "@DEFAULT_AUDIO_SINK@", &format!("{v}")])
+        .args(["set-volume", "@DEFAULT_AUDIO_SINK@", &format!("{v:.2}")])
         .status();
 }
 
@@ -109,10 +109,11 @@ fn play_tone_with_floor(_sound: &str, _floor: f32) {}
 #[cfg(not(target_os = "linux"))]
 fn speak(_text: &str) {}
 
-fn show_modal(app: &AppHandle) {
+fn show_modal(app: &AppHandle, color: &str) {
     if let Some(w) = app.get_webview_window("memwarn") {
         let _ = w.show();
         let _ = w.set_focus();
+        let _ = app.emit_to("memwarn", "modal-color", color.to_string());
     }
 }
 

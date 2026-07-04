@@ -57,7 +57,7 @@ function lighten(hex, amt) {
   return `#${[f(c.r), f(c.g), f(c.b)].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
-// Dim text = 72% blend of ink toward the background (matches the existing look).
+// Dim text = blend 28% toward the background (keeps 72% ink).
 function mix(a, b, t) {
   const x = parseHex(a);
   const y = parseHex(b);

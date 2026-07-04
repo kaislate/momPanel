@@ -83,7 +83,7 @@ mod theme_cfg_tests {
     }
 }
 
-/// Hide the high-memory banner now and suppress it until memory recovers.
+/// Hide the high-memory escalation modal now and suppress it until memory recovers.
 #[tauri::command]
 fn dismiss_mem_warn(app: tauri::AppHandle) {
     memwatch::request_dismiss();

@@ -115,13 +115,13 @@ pub struct AppConfig {
     /// The app version we last showed a "what's new" note for (to detect updates).
     #[serde(default)]
     pub last_seen_version: String,
-    /// Show an always-on-top banner when RAM usage crosses `mem_warn_percent`.
+    /// Show an alert when RAM usage crosses `mem_warn_percent`.
     #[serde(default = "default_true")]
     pub mem_warn_enabled: bool,
     /// RAM used-% that triggers the high-memory warning banner. One of 70/75/80/85/90.
     #[serde(default = "default_mem_pct")]
     pub mem_warn_percent: f32,
-    /// Banner background color as `#RRGGBB` (text color is auto-contrasted).
+    /// Escalation-modal background color as `#RRGGBB` (text color is auto-contrasted).
     #[serde(default = "default_mem_color")]
     pub mem_warn_color: String,
     /// Play an alert tone when the warning fires.

@@ -2,6 +2,18 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.4.2 — 2026-07-04
+
+### Fixed
+- **App icons.** Replaced the default Tauri placeholder icons with the momPanel logo
+  (source `assets/app-icon.png`, rendered from `assets/logo.svg`; regenerated via
+  `tauri icon`), so the AppImage/deb/rpm bundles and the window carry the real brand mark
+  instead of the Tauri/Vite default.
+- **Settings dropdowns rendered white-on-white.** WebKitGTK was drawing native `<select>`
+  controls (and their option popups) in the system light theme. Added `color-scheme: dark`
+  on `:root`, a custom inline-SVG chevron, and explicit `.info-row select option` colors so
+  the dropdowns are dark and readable and no longer look generic.
+
 ## 0.4.1 — 2026-07-04
 
 ### Fixed

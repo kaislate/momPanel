@@ -1,6 +1,12 @@
 // Plain-English, kind "what's new" notes shown inside the app after an update, keyed
 // by version. (The GitHub release notes in CHANGELOG.md can be more technical.)
 export const CHANGELOG = {
+  "0.4.2": {
+    changes: [
+      "🎨 momPanel finally wears its own face! The app icon is now the momPanel logo (Grandma with her little panel) instead of the generic placeholder — so it looks right in the taskbar and file manager.",
+      "🔽 Fixed the settings drop-downs — they were showing up white-on-white; now they're dark and easy to read.",
+    ],
+  },
   "0.4.1": {
     changes: [
       "🔧 Fixed the About window: it's now wider and scrolls, so you can reach every setting — including the new Theme colors that were hiding below the bottom.",

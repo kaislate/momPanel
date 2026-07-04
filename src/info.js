@@ -12,6 +12,7 @@ import {
 } from "./api.js";
 import { logoSvg } from "./logo.js";
 import { showWhatsNew } from "./whatsnew.js";
+import { applyTheme, defaultTheme, PRESETS } from "./theme.js";
 
 export async function openInfo() {
   const root = document.getElementById("modal-root");
@@ -23,6 +24,19 @@ export async function openInfo() {
     getConfig(),
     getAutostart(),
   ]);
+
+  const th = cfg.theme || defaultTheme();
+  const presetOpts = [
+    ["midnight", "Midnight"],
+    ["warm", "Warm"],
+    ["high-contrast", "High contrast"],
+    ["custom", "Custom"],
+  ]
+    .map(([v, label]) => `<option value="${v}" ${th.preset === v ? "selected" : ""}>${label}</option>`)
+    .join("");
+  const swatch = (slot, label) =>
+    `<label class="info-row"><span>${label}</span>` +
+    `<input type="color" data-theme="${slot}" value="${th[slot]}" /></label>`;
 
   // Threshold choices: 70–90% in 5% steps.
   const curPct = Math.round(cfg.mem_warn_percent || 85);
@@ -84,6 +98,15 @@ export async function openInfo() {
       .map((v) => `<option value="${v / 100}" ${Math.round((cfg.mem_warn_volume_floor || 0.6) * 100) === v ? "selected" : ""}>${v}%</option>`)
       .join("") +
     `</select></label>` +
+    `<div class="info-section">Theme</div>` +
+    `<label class="info-row"><span>Preset</span><select data-preset>${presetOpts}</select></label>` +
+    swatch("accent", "Accent") +
+    swatch("bg", "Background") +
+    swatch("tile", "Tiles") +
+    swatch("gauge_ok", "Gauge · healthy") +
+    swatch("gauge_warn", "Gauge · getting full") +
+    swatch("gauge_bad", "Gauge · critical") +
+    `<button class="tile-btn info-btn" data-action="theme-reset">Reset to default</button>` +
     `<button class="tile-btn info-close" data-action="close">Close</button>` +
     `</div></div>`;
 
@@ -155,5 +178,41 @@ export async function openInfo() {
   });
   root.querySelector("[data-memfloor]").addEventListener("change", (e) => {
     setConfig({ mem_warn_volume_floor: Number(e.target.value) });
+  });
+
+  // Live theme editing: apply immediately + persist. Editing a swatch marks it Custom.
+  const presetSel = root.querySelector("[data-preset]");
+  const readSwatches = () => {
+    const t = { preset: presetSel.value };
+    root.querySelectorAll("[data-theme]").forEach((el) => (t[el.dataset.theme] = el.value));
+    return t;
+  };
+
+  presetSel.addEventListener("change", (e) => {
+    const name = e.target.value;
+    const base = PRESETS[name];
+    if (base) {
+      root.querySelectorAll("[data-theme]").forEach((el) => (el.value = base[el.dataset.theme]));
+      const t = { preset: name, ...base };
+      applyTheme(t);
+      setConfig({ theme: t });
+    }
+  });
+
+  root.querySelectorAll("[data-theme]").forEach((el) =>
+    el.addEventListener("input", () => {
+      presetSel.value = "custom";
+      const t = { ...readSwatches(), preset: "custom" };
+      applyTheme(t);
+      setConfig({ theme: t });
+    })
+  );
+
+  root.querySelector('[data-action="theme-reset"]').addEventListener("click", () => {
+    const t = defaultTheme();
+    presetSel.value = t.preset;
+    root.querySelectorAll("[data-theme]").forEach((el) => (el.value = t[el.dataset.theme]));
+    applyTheme(t);
+    setConfig({ theme: t });
   });
 }

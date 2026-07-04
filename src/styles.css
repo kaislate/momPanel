@@ -605,6 +605,16 @@ body.help-hidden .tile-help {
   background: none;
   cursor: pointer;
 }
+.info-section {
+  width: 100%;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #2c3450;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink-dim);
+  text-align: left;
+}
 .info-close {
   width: 100%;
   background: #2c3450;

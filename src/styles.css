@@ -524,11 +524,29 @@ body.help-hidden .tile-help {
 
 /* About / info overlay panel */
 .info-card {
-  width: 320px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
+}
+/* Wider than the other modals and scrollable — the About panel holds all the settings
+   (alert + theme), which overflow a short fixed card. Overrides .modal-card's 320px. */
+.modal-card.info-card {
+  width: 480px;
+  max-width: 92vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+/* Checkboxes must stay small: the generic `.modal-card input` rule (for the first-run ZIP
+   field) otherwise stretches them to 100% width and shoves their labels off-panel. */
+.info-card input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--accent);
 }
 .info-logo {
   line-height: 0;
@@ -599,6 +617,7 @@ body.help-hidden .tile-help {
 .info-row input[type="color"] {
   width: 42px;
   height: 28px;
+  margin: 0;
   padding: 0;
   border: 1px solid #3a4566;
   border-radius: 8px;

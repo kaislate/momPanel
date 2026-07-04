@@ -26,3 +26,6 @@ dist-ssr
 # local-only working files / internal docs
 docs/
 local-assets/
+
+# local-only subagent-driven-development scratch
+.superpowers/

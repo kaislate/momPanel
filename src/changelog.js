@@ -1,6 +1,12 @@
 // Plain-English, kind "what's new" notes shown inside the app after an update, keyed
 // by version. (The GitHub release notes in CHANGELOG.md can be more technical.)
 export const CHANGELOG = {
+  "0.4.1": {
+    changes: [
+      "🔧 Fixed the About window: it's now wider and scrolls, so you can reach every setting — including the new Theme colors that were hiding below the bottom.",
+      "✅ The on/off checkboxes line up neatly with their labels again.",
+    ],
+  },
   "0.4.0": {
     changes: [
       "🚨 momPanel now warns you *before* your computer runs low on memory — with an alert sound and a spoken heads-up, even when momPanel is minimized, so a runaway app can't quietly freeze your PC.",

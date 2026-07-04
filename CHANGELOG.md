@@ -2,6 +2,21 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.4.3 — 2026-07-04
+
+### Added
+- **Weather fallback provider.** When Open-Meteo is unreachable, the collector now falls
+  back to the **US National Weather Service** (`api.weather.gov`, no key, US-only).
+  `weather.rs` splits the forecast into `forecast_open_meteo()` (primary) and
+  `forecast_nws()` (fallback); NWS day/night periods are aggregated into per-date
+  highs/lows and its `shortForecast` text is mapped to WMO codes via `nws_code()`, so both
+  providers flow through the same `condition()`/icon path. Adds a `User-Agent` (required by
+  NWS). Geocoding (zippopotam.us) is unchanged.
+
+### Fixed
+- Weather no longer blanks the tile during an Open-Meteo outage (as happened 2026-07-04,
+  when open-meteo's API was unreachable network-wide while everything else was healthy).
+
 ## 0.4.2 — 2026-07-04
 
 ### Fixed

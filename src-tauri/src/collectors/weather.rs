@@ -1,15 +1,17 @@
 //! Weather collector. Uses a dedicated command `read_weather(zip)` rather than the
 //! generic `read_tile`, because it needs the stored US ZIP code as input.
 //!
-//! Real implementation runs on every platform (it is just two HTTPS GETs), but any
-//! network or parse failure maps to `Unavailable` so the tile degrades calmly. We
-//! geocode the ZIP via zippopotam.us, then fetch current + daily forecast from
-//! Open-Meteo (no API key required).
+//! We geocode the ZIP via zippopotam.us, then fetch the forecast from **Open-Meteo**
+//! (no key). If Open-Meteo is unreachable, we fall back to the **US National Weather
+//! Service** (api.weather.gov, no key, US-only) so a single provider's outage doesn't
+//! blank the tile. Any network/parse failure maps to `Unavailable` so the tile degrades
+//! calmly.
 
+use reqwest::blocking::Client;
 use serde::Serialize;
 use std::time::Duration;
 
-// Temperatures are in Fahrenheit (Open-Meteo is queried with temperature_unit=fahrenheit).
+// Temperatures are in Fahrenheit.
 #[derive(Serialize)]
 pub struct DayForecast {
     pub date: String, // YYYY-MM-DD (local tz); frontend formats the weekday
@@ -47,7 +49,43 @@ pub fn condition(code: u8) -> &'static str {
     }
 }
 
-/// Geocode a US ZIP, then fetch current + daily forecast. Any error -> Unavailable.
+/// Map a US NWS `shortForecast` phrase to the closest WMO code, so the fallback data
+/// flows through the same `condition()`/icon mapping as Open-Meteo.
+pub fn nws_code(short_forecast: &str) -> u8 {
+    let t = short_forecast.to_lowercase();
+    if t.contains("thunder") {
+        95
+    } else if t.contains("snow")
+        || t.contains("flurr")
+        || t.contains("sleet")
+        || t.contains("ice")
+        || t.contains("blizzard")
+    {
+        71
+    } else if t.contains("rain") || t.contains("shower") || t.contains("drizzle") {
+        61
+    } else if t.contains("fog") || t.contains("haze") || t.contains("mist") {
+        45
+    } else if t.contains("partly")
+        || t.contains("mostly cloudy")
+        || t.contains("scattered")
+        || t.contains("broken")
+    {
+        2
+    } else if t.contains("cloud") || t.contains("overcast") {
+        3
+    } else if t.contains("sunny") || t.contains("clear") || t.contains("fair") {
+        0
+    } else {
+        2
+    }
+}
+
+/// A parsed forecast payload shared by both providers.
+type Forecast = (f32, u8, f32, f32, Vec<DayForecast>); // temp_f, code, high_f, low_f, days
+
+/// Geocode a US ZIP, then fetch the forecast (Open-Meteo, falling back to NWS).
+/// Any error -> Unavailable.
 pub fn read(zip: &str) -> WeatherData {
     match try_read(zip) {
         Some(data) => data,
@@ -56,9 +94,11 @@ pub fn read(zip: &str) -> WeatherData {
 }
 
 fn try_read(zip: &str) -> Option<WeatherData> {
-    let client = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(5))
+    let client = Client::builder()
+        .timeout(Duration::from_secs(6))
         .connect_timeout(Duration::from_secs(3))
+        // NWS requires a User-Agent; harmless for the other two hosts.
+        .user_agent("momPanel (+https://github.com/kaislate/momPanel)")
         .build()
         .ok()?;
 
@@ -79,7 +119,22 @@ fn try_read(zip: &str) -> Option<WeatherData> {
         format!("{}, {}", place_name, state_abbr)
     };
 
-    // 2) Forecast.
+    // 2) Forecast: Open-Meteo, then NWS as a fallback.
+    let (temp_f, code, high_f, low_f, days) = forecast_open_meteo(&client, lat, lon)
+        .or_else(|| forecast_nws(&client, lat, lon))?;
+
+    Some(WeatherData::Ok {
+        temp_f,
+        code,
+        high_f,
+        low_f,
+        place,
+        days,
+    })
+}
+
+/// Primary provider: Open-Meteo (current + 7-day daily, WMO codes, Fahrenheit).
+fn forecast_open_meteo(client: &Client, lat: &str, lon: &str) -> Option<Forecast> {
     let fc_url = format!(
         "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}\
          &current=temperature_2m,weather_code\
@@ -118,14 +173,70 @@ fn try_read(zip: &str) -> Option<WeatherData> {
         });
     }
 
-    Some(WeatherData::Ok {
-        temp_f,
-        code,
-        high_f,
-        low_f,
-        place,
-        days,
-    })
+    Some((temp_f, code, high_f, low_f, days))
+}
+
+/// Fallback provider: US National Weather Service. Two hops: `/points/{lat},{lon}` gives
+/// the forecast URL, whose day/night periods we aggregate into daily highs/lows.
+fn forecast_nws(client: &Client, lat: &str, lon: &str) -> Option<Forecast> {
+    let latf: f64 = lat.parse().ok()?;
+    let lonf: f64 = lon.parse().ok()?;
+    let points_url = format!("https://api.weather.gov/points/{:.4},{:.4}", latf, lonf);
+    let points: serde_json::Value = client.get(&points_url).send().ok()?.json().ok()?;
+    let fc_url = points.get("properties")?.get("forecast")?.as_str()?;
+
+    let fc: serde_json::Value = client.get(fc_url).send().ok()?.json().ok()?;
+    let periods = fc.get("properties")?.get("periods")?.as_array()?;
+    let first = periods.first()?;
+    let temp_f = first.get("temperature")?.as_f64()? as f32;
+    let cur_code = nws_code(first.get("shortForecast").and_then(|v| v.as_str()).unwrap_or(""));
+
+    // Aggregate the chronological day/night periods into per-date highs/lows.
+    let mut days: Vec<DayForecast> = Vec::new();
+    for p in periods {
+        let start = p.get("startTime").and_then(|v| v.as_str()).unwrap_or("");
+        if start.len() < 10 {
+            continue;
+        }
+        let date = start[..10].to_string();
+        let temp = p.get("temperature").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32;
+        let is_day = p.get("isDaytime").and_then(|v| v.as_bool()).unwrap_or(true);
+        let sf = p.get("shortForecast").and_then(|v| v.as_str()).unwrap_or("");
+        let precip = p
+            .get("probabilityOfPrecipitation")
+            .and_then(|v| v.get("value"))
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as u8;
+
+        match days.last_mut() {
+            Some(d) if d.date == date => {
+                if temp > d.high_f {
+                    d.high_f = temp;
+                }
+                if temp < d.low_f {
+                    d.low_f = temp;
+                }
+                if is_day {
+                    d.code = nws_code(sf); // prefer the daytime condition
+                }
+                if precip > d.precip_prob {
+                    d.precip_prob = precip;
+                }
+            }
+            _ => days.push(DayForecast {
+                date,
+                code: nws_code(sf),
+                high_f: temp,
+                low_f: temp,
+                precip_prob: precip,
+            }),
+        }
+    }
+    days.truncate(7);
+
+    let high_f = days.first()?.high_f;
+    let low_f = days.first()?.low_f;
+    Some((temp_f, cur_code, high_f, low_f, days))
 }
 
 #[cfg(test)]
@@ -161,5 +272,28 @@ mod tests {
         assert_eq!(condition(86), "snow");
         assert_eq!(condition(99), "thunder");
         assert_eq!(condition(200), "cloudy"); // out-of-range fallback
+    }
+
+    #[test]
+    fn nws_maps_to_wmo_buckets() {
+        assert_eq!(nws_code("Sunny"), 0);
+        assert_eq!(nws_code("Mostly Sunny"), 0);
+        assert_eq!(nws_code("Partly Cloudy"), 2);
+        assert_eq!(nws_code("Mostly Cloudy"), 2);
+        assert_eq!(nws_code("Cloudy"), 3);
+        assert_eq!(nws_code("Chance Rain Showers"), 61);
+        assert_eq!(nws_code("Light Snow"), 71);
+        assert_eq!(nws_code("Scattered Thunderstorms"), 95);
+        assert_eq!(nws_code("Patchy Fog"), 45);
+        assert_eq!(nws_code("Areas Of Smoke"), 2); // unknown -> cloudy bucket
+    }
+
+    #[test]
+    fn nws_code_maps_through_condition() {
+        // The fallback's codes must land in the same buckets the frontend expects.
+        assert_eq!(condition(nws_code("Thunderstorms")), "thunder");
+        assert_eq!(condition(nws_code("Snow")), "snow");
+        assert_eq!(condition(nws_code("Rain")), "rain");
+        assert_eq!(condition(nws_code("Sunny")), "clear");
     }
 }

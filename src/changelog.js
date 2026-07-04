@@ -1,6 +1,11 @@
 // Plain-English, kind "what's new" notes shown inside the app after an update, keyed
 // by version. (The GitHub release notes in CHANGELOG.md can be more technical.)
 export const CHANGELOG = {
+  "0.4.3": {
+    changes: [
+      "🌦️ Weather is more dependable now. If the main weather service is ever unreachable, momPanel automatically falls back to the US National Weather Service — so your forecast keeps showing instead of going blank.",
+    ],
+  },
   "0.4.2": {
     changes: [
       "🎨 momPanel finally wears its own face! The app icon is now the momPanel logo (Grandma with her little panel) instead of the generic placeholder — so it looks right in the taskbar and file manager.",

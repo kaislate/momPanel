@@ -13,6 +13,8 @@ import {
 import { logoSvg } from "./logo.js";
 import { showWhatsNew } from "./whatsnew.js";
 import { applyTheme, defaultTheme, PRESETS } from "./theme.js";
+import { closeActiveModal, setActiveModal } from "./modal.js";
+import { escapeHtml } from "./escape.js";
 
 export async function openInfo() {
   const root = document.getElementById("modal-root");
@@ -25,7 +27,9 @@ export async function openInfo() {
     getAutostart(),
   ]);
 
-  const th = cfg.theme || defaultTheme();
+  // Merge over the defaults so a partial stored theme can't yield "undefined"
+  // swatch values (which render as black).
+  const th = { ...defaultTheme(), ...(cfg.theme || {}) };
   const presetOpts = [
     ["midnight", "Midnight"],
     ["warm", "Warm"],
@@ -45,22 +49,28 @@ export async function openInfo() {
     .join("");
   const warnColor = cfg.mem_warn_color || "#D97706";
 
+  // Close any overlay already open (this open* is async, so one could be) before we
+  // overwrite #modal-root, so its keydown listener doesn't leak.
+  closeActiveModal();
+
   root.innerHTML =
     `<div class="modal-backdrop"><div class="modal-card info-card">` +
     `<div class="info-logo">${logoSvg(96)}</div>` +
     `<div class="info-name">momPanel</div>` +
-    `<div class="info-version">Version ${version || "—"}</div>` +
-    `<div class="info-os">Running on ${os || "this computer"}</div>` +
+    `<div class="info-version">Version ${escapeHtml(version || "—")}</div>` +
+    `<div class="info-os">Running on ${escapeHtml(os || "this computer")}</div>` +
     `<div class="info-status" aria-live="polite"></div>` +
     `<button class="tile-btn info-btn" data-action="updates">Check for updates</button>` +
     `<button class="tile-btn info-btn" data-action="whatsnew">What's New</button>` +
     `<button class="tile-btn info-btn" data-action="github">Visit GitHub</button>` +
+    `<div class="info-section">Startup &amp; updates</div>` +
     `<label class="info-auto"><input type="checkbox" data-startup ${
       autostart ? "checked" : ""
     } /><span>Start automatically when I log in</span></label>` +
     `<label class="info-auto"><input type="checkbox" data-auto ${
       cfg.auto_update ? "checked" : ""
     } /><span>Update automatically</span></label>` +
+    `<div class="info-section">Memory alerts</div>` +
     `<label class="info-auto"><input type="checkbox" data-memwarn ${
       cfg.mem_warn_enabled ? "checked" : ""
     } /><span>Warn me about high memory</span></label>` +
@@ -107,6 +117,10 @@ export async function openInfo() {
     swatch("gauge_warn", "Gauge · getting full") +
     swatch("gauge_bad", "Gauge · critical") +
     `<button class="tile-btn info-btn" data-action="theme-reset">Reset to default</button>` +
+    `<div class="info-section">Preview</div>` +
+    `<label class="info-auto"><input type="checkbox" data-experimental ${
+      cfg.experimental_ui ? "checked" : ""
+    } /><span>Try the new look — Companion mode (experimental). momPanel refreshes when you switch.</span></label>` +
     `<button class="tile-btn info-close" data-action="close">Close</button>` +
     `</div></div>`;
 
@@ -118,6 +132,7 @@ export async function openInfo() {
     if (e.key === "Escape") close();
   };
   document.addEventListener("keydown", onKey);
+  setActiveModal(close);
 
   const backdrop = root.querySelector(".modal-backdrop");
   backdrop.addEventListener("click", (e) => {
@@ -178,6 +193,12 @@ export async function openInfo() {
   });
   root.querySelector("[data-memfloor]").addEventListener("change", (e) => {
     setConfig({ mem_warn_volume_floor: Number(e.target.value) });
+  });
+
+  // Companion mode swap: persist first, then reload so exactly one mode boots.
+  root.querySelector("[data-experimental]").addEventListener("change", async (e) => {
+    await setConfig({ experimental_ui: e.target.checked });
+    location.reload();
   });
 
   // Live theme editing: apply immediately + persist. Editing a swatch marks it Custom.

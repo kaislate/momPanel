@@ -25,11 +25,23 @@ async function checkWhatsNew() {
 }
 
 async function boot() {
+  const cfg = await getConfig();
   // Apply saved colors before anything renders (prevents a flash of the default theme).
-  applyTheme((await getConfig()).theme);
+  applyTheme(cfg.theme);
 
   // Apply saved size + hide-controls state before tiles render (avoids a flash).
   const chrome = await initChrome();
+
+  // Experimental Companion mode replaces the tile grid entirely (status by
+  // exception: big time/weather, one health card). Toggled in the About panel;
+  // switching reloads the window, so exactly one mode ever boots.
+  if (cfg.experimental_ui) {
+    const { initCompanion } = await import("./preview/companion.js");
+    await initCompanion();
+    mountControls(chrome);
+    checkWhatsNew();
+    return;
+  }
 
   await registerAll(registerTile);
   mountTiles();

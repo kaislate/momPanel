@@ -1,0 +1,255 @@
+/* Companion mode (experimental preview) — a reimagined momPanel.
+   Philosophy: status by exception. The things mom actually glances at (time, date,
+   weather) are huge and beautiful; the technical tiles collapse into one calm
+   "All is well" card that only speaks up when something genuinely needs attention.
+   The background sky shifts gently with the time of day so the panel feels alive
+   without ever being busy. Loaded only when experimental_ui is on. */
+
+body.companion {
+  /* Sky gradients are set per time-of-day below; keep everything dark-friendly so
+     the light ink always reads. */
+  transition: background 3s ease;
+}
+body.companion[data-sky="dawn"] {
+  background: linear-gradient(160deg, #171430 0%, #241a33 55%, #3a2233 100%);
+}
+body.companion[data-sky="day"] {
+  background: linear-gradient(160deg, #0e1626 0%, #131e33 55%, #182640 100%);
+}
+body.companion[data-sky="dusk"] {
+  background: linear-gradient(160deg, #1a1428 0%, #2a1a2e 55%, #402431 100%);
+}
+body.companion[data-sky="night"] {
+  background: linear-gradient(160deg, #090b12 0%, #0d1019 55%, #101527 100%);
+}
+
+/* Root layout: hero column (left), health card (right), attention row (bottom,
+   only present when something needs a look). */
+.comp {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  grid-template-rows: 1fr auto;
+  gap: 1.2rem;
+  padding: 2rem 2.2rem 1.6rem;
+  height: 100vh;
+  box-sizing: border-box;
+}
+
+/* ---- Hero: greeting, giant time, date, weather ---- */
+.comp-hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+}
+.comp-greeting {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--ink-dim);
+  letter-spacing: 0.01em;
+}
+.comp-time {
+  font-size: 6.8rem;
+  font-weight: 250;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+.comp-ampm {
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: var(--ink-dim);
+}
+.comp-date {
+  font-size: 1.45rem;
+  font-weight: 500;
+  color: var(--ink);
+  margin-top: 0.2rem;
+}
+
+.comp-weather {
+  margin-top: 2rem;
+}
+.comp-wx-now {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.comp-wx-now .wx-icon {
+  flex: none;
+  color: var(--ink);
+}
+.comp-wx-temp {
+  font-size: 3.2rem;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.comp-wx-words {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.comp-wx-cond {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.comp-wx-hilo {
+  font-size: 1rem;
+  color: var(--ink-dim);
+}
+/* Compact 4-day strip under the current conditions. */
+.comp-wx-days {
+  display: flex;
+  gap: 1.6rem;
+  margin-top: 1rem;
+}
+.comp-wx-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.9rem;
+}
+.comp-wx-day .wx-icon {
+  color: var(--ink-dim);
+}
+.comp-wx-day-name {
+  color: var(--ink-dim);
+}
+.comp-wx-day-temp {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.comp-wx-day-temp .lo {
+  color: var(--ink-dim);
+  font-weight: 400;
+  margin-left: 4px;
+}
+/* Small footnote when we're showing remembered (stale) weather, plus the location
+   affordances. */
+.comp-wx-note {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+}
+.comp-wx-note a {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+}
+/* First-run: no ZIP yet — one friendly button instead of a dead tile. */
+.comp-wx-setup {
+  margin-top: 0.4rem;
+  align-self: flex-start;
+}
+
+/* ---- Health card: one glance says whether anything needs attention ---- */
+.comp-health {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 24px;
+  padding: 1.5rem 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  align-self: center;
+  min-width: 0;
+}
+.comp-health-head {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.comp-health-glyph {
+  width: 2.6rem;
+  height: 2.6rem;
+  flex: none;
+}
+.comp-health-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+.comp-health-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 1.05rem;
+}
+.comp-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  flex: none;
+  background: var(--ink-dim);
+}
+.comp-dot.ok { background: var(--ok); }
+.comp-dot.warn { background: var(--warn); }
+.comp-dot.bad { background: var(--bad); }
+.comp-row-label {
+  flex: 1;
+  color: var(--ink-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.comp-row-word {
+  font-weight: 600;
+  flex: none;
+}
+
+/* ---- Attention cards: only exist when something needs a look ---- */
+.comp-attention {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.comp-attention:empty {
+  display: none;
+}
+.comp-card {
+  flex: 1 1 20rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 5px solid var(--warn);
+  border-radius: 18px;
+  padding: 1rem 1.2rem;
+  animation: comp-card-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.comp-card.bad {
+  border-left-color: var(--bad);
+}
+@keyframes comp-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+.comp-card-text {
+  flex: 1;
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+.comp-card .tile-btn {
+  margin-top: 0;
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.companion {
+    transition: none;
+  }
+  .comp-card {
+    animation: none;
+  }
+}

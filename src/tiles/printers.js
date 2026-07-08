@@ -6,16 +6,17 @@ import { printerStatusWord } from "../copy.js";
 import { escapeHtml } from "../escape.js";
 import { tile, mutedGraphic } from "../layout.js";
 
+// Theme-aware status colors so the user's palette (incl. high-contrast) applies.
 function dotColor(status) {
   switch (status) {
     case "ready":
-      return "#34c759";
+      return "var(--ok)";
     case "offline":
-      return "#ff3b30";
+      return "var(--bad)";
     case "out_of_paper":
-      return "#ff9f0a";
+      return "var(--warn)";
     default:
-      return "#8e8e93";
+      return "var(--ink-dim)";
   }
 }
 

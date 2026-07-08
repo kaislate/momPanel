@@ -32,12 +32,13 @@ export function register(registerTile) {
         return;
       }
       const online = data.online === true;
-      const color = online ? "#2ecc71" : "#e74c3c";
+      // Theme-aware status colors (the high-contrast preset must reach this tile).
+      const color = online ? "var(--ok)" : "var(--bad)";
       const label = online ? "Online" : "Offline";
       el.innerHTML = tile({
         title: "Internet",
         graphic: `<div class="tile-big" style="color:${color}">${globeSvg(
-          color,
+          "currentColor",
           "1em"
         )} ${label}</div>`,
         foot: `<div class="tile-status">${internetMessage(online)}</div>`,

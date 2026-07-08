@@ -44,7 +44,15 @@ export function mountTiles() {
 
 function runner(t) {
   return async () => {
+    // Each run claims a monotonically increasing generation before awaiting. The 20s
+    // poll and the instant net-changed refresh overlap, so a slow older response could
+    // otherwise repaint over a newer one (e.g. "Offline" lingering after reconnect).
+    // Discard any result whose generation is no longer the latest. This can't wedge a
+    // tile: every run increments and captures its own generation, so a discarded
+    // response never blocks a future run.
+    const gen = (t._gen = (t._gen || 0) + 1);
     const data = t.fetch ? await t.fetch() : await getTile(t.id);
+    if (gen !== t._gen) return;
     try {
       t.render(t._el, data);
     } catch (e) {

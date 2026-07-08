@@ -1,5 +1,7 @@
 // Plain-language "what is this?" explanations for each tile, shown in a small popup
 // when the tile's "?" dot is clicked. Written for a non-technical reader.
+import { closeActiveModal, setActiveModal } from "./modal.js";
+
 export const HELP = {
   clock: {
     title: "Clock",
@@ -49,6 +51,9 @@ export function showHelp(id) {
   const item = HELP[id];
   if (!root || !item) return;
 
+  // Drop any modal already open before overwriting #modal-root so listeners don't stack.
+  closeActiveModal();
+
   root.innerHTML =
     `<div class="modal-backdrop"><div class="modal-card help-card">` +
     `<div class="help-title">${item.title}</div>` +
@@ -64,6 +69,7 @@ export function showHelp(id) {
     if (e.key === "Escape") close();
   };
   document.addEventListener("keydown", onKey);
+  setActiveModal(close);
   const backdrop = root.querySelector(".modal-backdrop");
   backdrop.addEventListener("click", (e) => {
     if (e.target === backdrop) close();

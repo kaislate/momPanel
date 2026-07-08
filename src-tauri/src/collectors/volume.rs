@@ -16,7 +16,11 @@ pub fn read() -> VolumeData {
     #[cfg(target_os = "linux")]
     {
         use std::process::Command;
+        // Pin the locale: parse_wpctl looks for the literal "Volume:" / "[MUTED]" tokens
+        // that wpctl would otherwise translate.
         match Command::new("wpctl")
+            .env("LC_ALL", "C")
+            .env("LANG", "C")
             .args(["get-volume", "@DEFAULT_AUDIO_SINK@"])
             .output()
         {

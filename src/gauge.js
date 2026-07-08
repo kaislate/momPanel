@@ -33,12 +33,18 @@ export function arcGauge(percent, label, sub = "", colorPercent = percent) {
   const dash = (p / 100) * circ;
   const color = gaugeColor(colorPercent);
   const track = cssVar("--gauge-track", "#2a3146");
+  // A round linecap on a zero-length dash still paints a stray dot at the ring start,
+  // so when the fill rounds away to nothing we draw only the track.
+  const arc =
+    Math.round(dash) > 0
+      ? `<circle cx="50" cy="50" r="${r}" fill="none" stroke="${color}" stroke-width="9"
+      stroke-linecap="round" stroke-dasharray="${dash} ${circ}"
+      transform="rotate(-90 50 50)" />`
+      : "";
   return `
   <svg class="gauge" viewBox="0 0 100 100" role="img">
     <circle cx="50" cy="50" r="${r}" fill="none" stroke="${track}" stroke-width="9" />
-    <circle cx="50" cy="50" r="${r}" fill="none" stroke="${color}" stroke-width="9"
-      stroke-linecap="round" stroke-dasharray="${dash} ${circ}"
-      transform="rotate(-90 50 50)" />
+    ${arc}
     <text x="50" y="48" text-anchor="middle" class="gauge-label">${label}</text>
     <text x="50" y="64" text-anchor="middle" class="gauge-sub">${sub}</text>
   </svg>`;

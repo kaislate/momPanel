@@ -121,6 +121,28 @@ fn unavail() -> serde_json::Value {
     serde_json::json!({ "state": "unavailable" })
 }
 
+// Holds the panel's latest position between throttled writes so a drag (which emits a
+// burst of Moved events) touches disk at most every 2s instead of on every pixel.
+struct PosThrottle {
+    pending: Option<(i32, i32)>,
+    last_write: std::time::Instant,
+}
+
+impl PosThrottle {
+    fn new() -> Self {
+        Self { pending: None, last_write: std::time::Instant::now() }
+    }
+}
+
+// Persist the panel's outer position through the serialized config path.
+fn persist_position(x: i32, y: i32) {
+    let _ = config::update(|c| {
+        c.window_x = Some(x);
+        c.window_y = Some(y);
+        Ok(())
+    });
+}
+
 #[tauri::command]
 fn get_config() -> AppConfig {
     config::load()
@@ -131,7 +153,12 @@ fn get_config() -> AppConfig {
 // `patch` are applied; everything else is preserved.
 #[tauri::command]
 fn set_config(cfg: serde_json::Value) -> Result<AppConfig, String> {
-    let mut current = config::load();
+    // The whole read-modify-write runs under config::update's lock so two concurrent
+    // patches (e.g. clock toggle + weather ZIP) can't drop each other's change.
+    config::update(|current| apply_patch(current, &cfg))
+}
+
+fn apply_patch(current: &mut AppConfig, cfg: &serde_json::Value) -> Result<(), String> {
     if let Some(v) = cfg.get("zip") {
         if let Some(s) = v.as_str() {
             if !is_valid_zip(s) {
@@ -223,8 +250,10 @@ fn set_config(cfg: serde_json::Value) -> Result<AppConfig, String> {
         hex("gauge_warn", &mut current.theme.gauge_warn);
         hex("gauge_bad", &mut current.theme.gauge_bad);
     }
-    config::save(&current)?;
-    Ok(current)
+    if let Some(b) = cfg.get("experimental_ui").and_then(|v| v.as_bool()) {
+        current.experimental_ui = b;
+    }
+    Ok(())
 }
 
 // App version (from tauri.conf.json), shown in the info panel.
@@ -325,6 +354,16 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        // Registered first so a second launch is intercepted before any window work.
+        // This app autostarts on login, so a manual re-launch must surface the running
+        // panel rather than spawn a second process.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.show();
+                let _ = w.unminimize();
+                let _ = w.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         // Autostart on login. LaunchAgent is the macOS strategy; on Linux this
         // writes a ~/.config/autostart entry, on Windows a registry Run key.
@@ -369,14 +408,45 @@ pub fn run() {
             .build()?;
             let _ = warn.set_visible_on_all_workspaces(true);
 
-            // Closing the MAIN window quits the app (the hidden banner window would
-            // otherwise keep the process alive after the panel is closed).
+            // Restore the panel to where the user last left it, then reveal it. The
+            // window is created hidden (and center:true has already centered it), so a
+            // saved position wins without a visible jump; with no saved position the
+            // centered default shows through. Coordinates are physical outer pixels,
+            // matching what WindowEvent::Moved reports. Best-effort: GNOME Wayland
+            // ignores client-side positioning, so restore only takes effect on X11 (and
+            // Windows) — Wayland keeps the compositor's placement.
             if let Some(main) = app.get_webview_window("main") {
+                if let (Some(x), Some(y)) = (cfg.window_x, cfg.window_y) {
+                    let _ = main.set_position(tauri::PhysicalPosition::new(x, y));
+                }
+                let _ = main.show();
+                let _ = main.set_focus();
+
+                // Persist moves at most every 2s (a drag emits a flood of Moved events),
+                // and flush the last position on close so the final spot is never lost.
+                let throttle = std::sync::Arc::new(std::sync::Mutex::new(PosThrottle::new()));
                 let h = app.handle().clone();
-                main.on_window_event(move |e| {
-                    if let tauri::WindowEvent::CloseRequested { .. } = e {
+                main.on_window_event(move |e| match e {
+                    tauri::WindowEvent::Moved(p) => {
+                        let mut st = throttle.lock().unwrap_or_else(|e| e.into_inner());
+                        st.pending = Some((p.x, p.y));
+                        if st.last_write.elapsed() >= std::time::Duration::from_secs(2) {
+                            if let Some((x, y)) = st.pending.take() {
+                                persist_position(x, y);
+                                st.last_write = std::time::Instant::now();
+                            }
+                        }
+                    }
+                    // Closing the MAIN window quits the app (the hidden banner window
+                    // would otherwise keep the process alive after the panel is closed).
+                    tauri::WindowEvent::CloseRequested { .. } => {
+                        let st = throttle.lock().unwrap_or_else(|e| e.into_inner());
+                        if let Some((x, y)) = st.pending {
+                            persist_position(x, y);
+                        }
                         h.exit(0);
                     }
+                    _ => {}
                 });
             }
 

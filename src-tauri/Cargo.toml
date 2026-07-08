@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.4.3"
+version = "0.5.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -26,6 +26,7 @@ dirs = "5"
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-updater = "2"
+tauri-plugin-single-instance = "2"
 
 # Windows-only: Core Audio (master volume / mute) for the volume tile.
 [target.'cfg(windows)'.dependencies]

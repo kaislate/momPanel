@@ -9,7 +9,25 @@
 
 use reqwest::blocking::Client;
 use serde::Serialize;
+use std::sync::OnceLock;
 use std::time::Duration;
+
+/// One shared HTTP client for all weather fetches (connection pool + fixed timeouts),
+/// instead of rebuilding one per refresh.
+fn http() -> &'static Client {
+    static CLIENT: OnceLock<Client> = OnceLock::new();
+    CLIENT.get_or_init(|| {
+        Client::builder()
+            .timeout(Duration::from_secs(6))
+            .connect_timeout(Duration::from_secs(3))
+            // NWS requires a User-Agent; harmless for the other two hosts.
+            .user_agent("momPanel (+https://github.com/kaislate/momPanel)")
+            .build()
+            // Building only fails if the TLS backend can't init; Client::new() is the
+            // same default and would panic identically, so this is effectively infallible.
+            .unwrap_or_else(|_| Client::new())
+    })
+}
 
 // Temperatures are in Fahrenheit.
 #[derive(Serialize)]
@@ -94,20 +112,92 @@ pub fn read(zip: &str) -> WeatherData {
 }
 
 fn try_read(zip: &str) -> Option<WeatherData> {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(6))
-        .connect_timeout(Duration::from_secs(3))
-        // NWS requires a User-Agent; harmless for the other two hosts.
-        .user_agent("momPanel (+https://github.com/kaislate/momPanel)")
-        .build()
-        .ok()?;
+    let client = http();
 
-    // 1) Geocode ZIP -> lat/lon + place name.
-    let geo_url = format!("https://api.zippopotam.us/us/{}", zip);
-    let geo: serde_json::Value = client.get(&geo_url).send().ok()?.json().ok()?;
+    // 1) Geocode ZIP -> lat/lon + place name (cached in config while the ZIP matches).
+    let geo = geocode(client, zip)?;
+
+    // 2) Forecast: Open-Meteo, then NWS as a fallback.
+    let (temp_f, code, high_f, low_f, days) = forecast_open_meteo(client, &geo.lat, &geo.lon)
+        .or_else(|| forecast_nws(client, &geo.lat, &geo.lon))?;
+
+    Some(WeatherData::Ok {
+        temp_f,
+        code,
+        high_f,
+        low_f,
+        place: geo.place,
+        days,
+    })
+}
+
+/// A geocoded location. lat/lon are strings because that's the form the forecast APIs
+/// consume (and what zippopotam.us returns).
+struct Geo {
+    lat: String,
+    lon: String,
+    place: String,
+}
+
+/// Whether the cached geocode can be reused for `zip`: the cached ZIP must match and all
+/// three coordinate/place parts must be present. Pure, so it's unit-testable.
+fn geo_cache_matches(
+    cached_zip: Option<&str>,
+    zip: &str,
+    lat: Option<&str>,
+    lon: Option<&str>,
+    place: Option<&str>,
+) -> bool {
+    cached_zip == Some(zip) && lat.is_some() && lon.is_some() && place.is_some()
+}
+
+/// Resolve a ZIP to coordinates + place name. Reuses the cached result in config while
+/// the ZIP is unchanged; otherwise geocodes via zippopotam.us, falling back to
+/// Open-Meteo's geocoder, and writes the fresh result back through the config save path
+/// so subsequent refreshes skip the geocoder entirely.
+fn geocode(client: &Client, zip: &str) -> Option<Geo> {
+    let cfg = crate::config::load();
+    if geo_cache_matches(
+        cfg.geo_zip.as_deref(),
+        zip,
+        cfg.geo_lat.as_deref(),
+        cfg.geo_lon.as_deref(),
+        cfg.geo_place.as_deref(),
+    ) {
+        // The guard above guarantees all three are Some.
+        return Some(Geo {
+            lat: cfg.geo_lat?,
+            lon: cfg.geo_lon?,
+            place: cfg.geo_place?,
+        });
+    }
+
+    let geo = geocode_zippopotam(client, zip).or_else(|| geocode_open_meteo(client, zip))?;
+
+    let (z, lat, lon, place) = (
+        zip.to_string(),
+        geo.lat.clone(),
+        geo.lon.clone(),
+        geo.place.clone(),
+    );
+    let _ = crate::config::update(|c| {
+        c.geo_zip = Some(z);
+        c.geo_lat = Some(lat);
+        c.geo_lon = Some(lon);
+        c.geo_place = Some(place);
+        Ok(())
+    });
+
+    Some(geo)
+}
+
+/// Primary geocoder: zippopotam.us (US ZIP -> lat/lon strings + "City, ST").
+fn geocode_zippopotam(client: &Client, zip: &str) -> Option<Geo> {
+    let url = format!("https://api.zippopotam.us/us/{}", zip);
+    let geo: serde_json::Value = client.get(&url).send().ok()?.json().ok()?;
     let place_obj = geo.get("places")?.get(0)?;
-    let lat = place_obj.get("latitude")?.as_str()?;
-    let lon = place_obj.get("longitude")?.as_str()?;
+    let lat = place_obj.get("latitude")?.as_str()?.to_string();
+    let lon = place_obj.get("longitude")?.as_str()?.to_string();
     let place_name = place_obj.get("place name")?.as_str()?;
     let state_abbr = place_obj
         .get("state abbreviation")
@@ -118,18 +208,39 @@ fn try_read(zip: &str) -> Option<WeatherData> {
     } else {
         format!("{}, {}", place_name, state_abbr)
     };
+    Some(Geo { lat, lon, place })
+}
 
-    // 2) Forecast: Open-Meteo, then NWS as a fallback.
-    let (temp_f, code, high_f, low_f, days) = forecast_open_meteo(&client, lat, lon)
-        .or_else(|| forecast_nws(&client, lat, lon))?;
-
-    Some(WeatherData::Ok {
-        temp_f,
-        code,
-        high_f,
-        low_f,
+/// Fallback geocoder: Open-Meteo's geocoding API, so a zippopotam.us outage doesn't
+/// blank the tile. Its lat/lon are JSON numbers (unlike zippopotam's strings), so we
+/// stringify them for the shared forecast path.
+fn geocode_open_meteo(client: &Client, zip: &str) -> Option<Geo> {
+    let url = format!(
+        "https://geocoding-api.open-meteo.com/v1/search?name={}&count=1",
+        zip
+    );
+    let resp: serde_json::Value = client.get(&url).send().ok()?.json().ok()?;
+    let hit = resp.get("results")?.as_array()?.first()?;
+    // A bare ZIP can resolve to a postal code in another country; when the result
+    // carries a country code, require the US match (accept if the field is absent).
+    if let Some(cc) = hit.get("country_code").and_then(|v| v.as_str()) {
+        if !cc.eq_ignore_ascii_case("US") {
+            return None;
+        }
+    }
+    let lat = hit.get("latitude")?.as_f64()?;
+    let lon = hit.get("longitude")?.as_f64()?;
+    let name = hit.get("name").and_then(|v| v.as_str()).unwrap_or(zip);
+    let admin = hit.get("admin1").and_then(|v| v.as_str()).unwrap_or("");
+    let place = if admin.is_empty() {
+        name.to_string()
+    } else {
+        format!("{}, {}", name, admin)
+    };
+    Some(Geo {
+        lat: lat.to_string(),
+        lon: lon.to_string(),
         place,
-        days,
     })
 }
 
@@ -286,6 +397,24 @@ mod tests {
         assert_eq!(nws_code("Scattered Thunderstorms"), 95);
         assert_eq!(nws_code("Patchy Fog"), 45);
         assert_eq!(nws_code("Areas Of Smoke"), 2); // unknown -> cloudy bucket
+    }
+
+    #[test]
+    fn geo_cache_reused_only_on_exact_zip_with_all_parts() {
+        // Complete cache for the same ZIP -> reuse.
+        assert!(geo_cache_matches(
+            Some("90210"), "90210", Some("34.09"), Some("-118.4"), Some("Beverly Hills, CA")
+        ));
+        // Different ZIP -> miss (must re-geocode).
+        assert!(!geo_cache_matches(
+            Some("10001"), "90210", Some("34.09"), Some("-118.4"), Some("Beverly Hills, CA")
+        ));
+        // No cached ZIP -> miss.
+        assert!(!geo_cache_matches(None, "90210", Some("34.09"), Some("-118.4"), Some("X")));
+        // Matching ZIP but a missing part -> miss.
+        assert!(!geo_cache_matches(Some("90210"), "90210", None, Some("-118.4"), Some("X")));
+        assert!(!geo_cache_matches(Some("90210"), "90210", Some("34.09"), None, Some("X")));
+        assert!(!geo_cache_matches(Some("90210"), "90210", Some("34.09"), Some("-118.4"), None));
     }
 
     #[test]

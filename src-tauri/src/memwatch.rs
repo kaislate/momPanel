@@ -32,9 +32,18 @@ pub fn spawn(app: AppHandle) {
         let mut started = Instant::now();
         let mut last_fire = Instant::now();
 
+        // Cache the config and reload only when a save bumps the generation counter,
+        // instead of re-reading and re-parsing config.json on every 2s tick.
+        let mut cfg = crate::config::load();
+        let mut cfg_gen = crate::config::GENERATION.load(Ordering::Acquire);
+
         loop {
             std::thread::sleep(POLL);
-            let cfg = crate::config::load();
+            let gen = crate::config::GENERATION.load(Ordering::Acquire);
+            if gen != cfg_gen {
+                cfg = crate::config::load();
+                cfg_gen = gen;
+            }
 
             if !cfg.mem_warn_enabled {
                 if state.active || state.escalated {

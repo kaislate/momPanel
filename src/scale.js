@@ -16,20 +16,49 @@ function clampScale(s) {
   return STEPS.includes(s) ? s : "normal";
 }
 
-// Grow/shrink the OS window to match the chosen size (best-effort).
-async function resizeWindow(scale) {
+// Cap the scale factor so the window always fits the screen: on a small laptop,
+// "biggest" (1512x935) would otherwise grow past the edges. Best-effort — if the
+// monitor can't be read, the requested factor is used unchanged.
+async function fittedFactor(f) {
+  const winApi = window.__TAURI__?.window;
+  try {
+    const mon = winApi?.currentMonitor ? await winApi.currentMonitor() : null;
+    if (!mon) return f;
+    const sf = mon.scaleFactor || 1;
+    // workArea (excludes taskbars/docks) where the runtime provides it; otherwise
+    // full monitor size minus a margin so a taskbar never hides the panel's edge.
+    const area = mon.workArea?.size ?? mon.size;
+    const margin = mon.workArea ? 0 : 80;
+    return Math.min(f, (area.width / sf - margin) / BASE_W, (area.height / sf - margin) / BASE_H);
+  } catch {
+    return f;
+  }
+}
+
+// Grow/shrink the OS window to match the chosen size (best-effort). Deliberately
+// does NOT re-center: the window position is user-chosen and remembered by the
+// backend, and re-centering on every size change would fight that.
+async function resizeWindow(f) {
   const tauri = window.__TAURI__;
   const winApi = tauri?.window;
   const LogicalSize = tauri?.dpi?.LogicalSize ?? winApi?.LogicalSize;
   if (!winApi || !LogicalSize) return;
   try {
-    const f = FACTORS[scale] ?? 1;
     const win = winApi.getCurrentWindow();
     await win.setSize(new LogicalSize(Math.round(BASE_W * f), Math.round(BASE_H * f)));
-    await win.center();
   } catch {
     /* window resize unavailable; font scaling still applies */
   }
+}
+
+// When the screen can't fit the requested step, the font scale shrinks to the
+// same capped factor so the fixed 4-column layout still fits the smaller window.
+async function fitAndResize(s) {
+  const requested = FACTORS[s] ?? 1;
+  const f = await fittedFactor(requested);
+  document.documentElement.style.fontSize =
+    f < requested - 0.001 ? `${Math.round(16 * f * 10) / 10}px` : "";
+  await resizeWindow(f);
 }
 
 export function applyScale(scale) {
@@ -37,7 +66,7 @@ export function applyScale(scale) {
   const root = document.documentElement;
   STEPS.forEach((step) => root.classList.remove(`scale-${step}`));
   root.classList.add(`scale-${s}`);
-  resizeWindow(s); // fire-and-forget
+  fitAndResize(s); // fire-and-forget
   return s;
 }
 

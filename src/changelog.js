@@ -1,6 +1,16 @@
 // Plain-English, kind "what's new" notes shown inside the app after an update, keyed
 // by version. (The GitHub release notes in CHANGELOG.md can be more technical.)
 export const CHANGELOG = {
+  "0.5.0": {
+    changes: [
+      "🧪 New to try: Companion mode! A calmer momPanel — a big clock, the weather, and one “All is well” card that only speaks up when something needs attention. Turn it on in the About window, under Preview.",
+      "📍 momPanel now remembers where you put the window.",
+      "🔇 When the sound is muted, the Volume tile now says “Sound is off” loud and clear.",
+      "🌦️ Weather is sturdier: an internet hiccup keeps your last forecast on screen, and setting your location is one friendly button.",
+      "🎨 Your theme colors now reach everything — the internet globe, Wi-Fi arcs, and printer dots (including High contrast).",
+      "🖨️ Printers and Wi-Fi now work in any language, and momPanel won't accidentally open twice.",
+    ],
+  },
   "0.4.3": {
     changes: [
       "🌦️ Weather is more dependable now. If the main weather service is ever unreachable, momPanel automatically falls back to the US National Weather Service — so your forecast keeps showing instead of going blank.",

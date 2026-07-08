@@ -8,7 +8,9 @@
 use serde::Serialize;
 use sysinfo::Disks;
 
-const GIB: u64 = 1_073_741_824;
+// Decimal GB (1e9), not GiB: this matches the capacity GNOME Files/Disks (and drive
+// labels) report, so the tile's numbers line up with what the user sees elsewhere.
+const GB: u64 = 1_000_000_000;
 
 #[derive(Serialize)]
 #[serde(tag = "state", rename_all = "lowercase")]
@@ -86,8 +88,8 @@ pub fn read() -> StorageData {
 
     StorageData::Ok {
         used_percent: percent(used, total),
-        free_gb: available / GIB,
-        total_gb: total / GIB,
+        free_gb: available / GB,
+        total_gb: total / GB,
     }
 }
 

@@ -1,13 +1,23 @@
 // Clock + Date tiles (frontend only). Clock graphic is an analog face or a big
 // digital time, with a Show analog/digital toggle in the foot (persisted). Date is
-// the weekday (graphic) over the full date (foot).
+// the weekday (graphic) over the full date (foot), with a mini month calendar.
+//
+// Both tiles tick every second but PATCH their DOM in place instead of rebuilding
+// it: rebuilding wiped keyboard focus and hover off the toggle button 60x a minute,
+// and rebuilt the whole month calendar for content that changes once a day.
 import { getConfig, setConfig } from "../api.js";
 import { tile } from "../layout.js";
 
 let clockMode = "digital";
 
-// Analog face: all twelve numerals on a circle, tick marks, and three hands.
-function analogSvg(now) {
+// Freeze the sweeping second hand for users who ask the OS for less motion.
+const reduceMotion =
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+// Static parts of the analog face: ring, ticks, numerals. Drawn once; only the
+// hands' rotation is patched on each tick.
+function analogFaceSvg() {
   const cx = 50;
   const cy = 50;
   const numeralR = 38;
@@ -31,47 +41,86 @@ function analogSvg(now) {
       2
     )}" y2="${y2.toFixed(2)}" stroke="currentColor" stroke-width="1" opacity="0.6"/>`;
   }
-  const hours = now.getHours() % 12;
-  const minutes = now.getMinutes();
-  const seconds = now.getSeconds();
-  const hourDeg = hours * 30 + minutes * 0.5;
-  const minDeg = minutes * 6;
-  const secDeg = seconds * 6;
+  const secondHand = reduceMotion
+    ? ""
+    : `<line data-hand="s" x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - 36}" ` +
+      `stroke="var(--bad)" stroke-width="1" stroke-linecap="round"/>`;
   return (
     `<svg class="gauge" viewBox="0 0 100 100" role="img" aria-label="Analog clock">` +
     `<circle cx="${cx}" cy="${cy}" r="47" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>` +
     ticks +
     numerals +
-    `<line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - 22}" stroke="currentColor" stroke-width="3" stroke-linecap="round" transform="rotate(${hourDeg.toFixed(
-      2
-    )} ${cx} ${cy})"/>` +
-    `<line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - 32}" stroke="currentColor" stroke-width="2" stroke-linecap="round" transform="rotate(${minDeg.toFixed(
-      2
-    )} ${cx} ${cy})"/>` +
-    `<line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - 36}" stroke="#e0564f" stroke-width="1" stroke-linecap="round" transform="rotate(${secDeg.toFixed(
-      2
-    )} ${cx} ${cy})"/>` +
+    `<line data-hand="h" x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - 22}" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>` +
+    `<line data-hand="m" x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - 32}" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>` +
+    secondHand +
     `<circle cx="${cx}" cy="${cy}" r="2.5" fill="currentColor"/></svg>`
   );
 }
 
-function renderClock(el) {
-  const now = new Date();
+function patchAnalog(el, now) {
+  const hours = now.getHours() % 12;
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+  const rotate = (hand, deg) =>
+    el
+      .querySelector(`[data-hand="${hand}"]`)
+      ?.setAttribute("transform", `rotate(${deg.toFixed(2)} 50 50)`);
+  rotate("h", hours * 30 + minutes * 0.5);
+  rotate("m", minutes * 6);
+  if (!reduceMotion) rotate("s", seconds * 6);
+}
+
+// Digital time split for a calm, glanceable hierarchy: hours:minutes big, the
+// seconds and AM/PM small and dimmed beside them.
+function timeParts(now) {
+  const parts = new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(now);
+  const get = (t) => parts.find((p) => p.type === t)?.value ?? "";
+  return {
+    hm: `${get("hour")}:${get("minute")}`,
+    rest: `${get("second")}${get("dayPeriod") ? " " + get("dayPeriod") : ""}`,
+  };
+}
+
+function patchDigital(el, now) {
+  const { hm, rest } = timeParts(now);
+  const hmEl = el.querySelector("[data-clock-hm]");
+  const restEl = el.querySelector("[data-clock-rest]");
+  if (hmEl && hmEl.textContent !== hm) hmEl.textContent = hm;
+  if (restEl && restEl.textContent !== rest) restEl.textContent = rest;
+}
+
+// Build the tile skeleton for the current mode; called only when the mode changes
+// (or on first render), never on the per-second tick.
+function buildClock(el) {
   const next = clockMode === "analog" ? "digital" : "analog";
   const graphic =
     clockMode === "analog"
-      ? analogSvg(now)
-      : `<div class="tile-big">${now.toLocaleTimeString()}</div>`;
+      ? analogFaceSvg()
+      : `<div class="tile-big"><span data-clock-hm></span>` +
+        `<span class="tile-sub" data-clock-rest style="margin-left:6px"></span></div>`;
   el.innerHTML = tile({
     title: "Clock",
     graphic,
     foot: `<button class="tile-btn" type="button" data-action="toggle">Show ${next}</button>`,
   });
+  el.dataset.clockMode = clockMode;
   el.querySelector('[data-action="toggle"]')?.addEventListener("click", () => {
     clockMode = next;
     setConfig({ clock_mode: clockMode });
     renderClock(el);
+    el.querySelector('[data-action="toggle"]')?.focus(); // rebuild drops focus; restore
   });
+}
+
+function renderClock(el) {
+  const now = new Date();
+  if (el.dataset.clockMode !== clockMode) buildClock(el);
+  if (clockMode === "analog") patchAnalog(el, now);
+  else patchDigital(el, now);
 }
 
 // A mini calendar for the current month with today highlighted.
@@ -100,8 +149,13 @@ function calendarHtml(now) {
   );
 }
 
+// The date tile only changes at midnight, so rebuild only when the day changes
+// (the 1s tick just compares a cached key).
 function renderDate(el) {
   const now = new Date();
+  const key = now.toDateString();
+  if (el.dataset.dateKey === key) return;
+  el.dataset.dateKey = key;
   const weekday = now.toLocaleDateString(undefined, { weekday: "long" });
   el.innerHTML =
     `<div class="tile-title">Date</div>` +

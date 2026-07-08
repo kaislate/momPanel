@@ -29,7 +29,15 @@ pub fn read() -> PrintersData {
     #[cfg(target_os = "linux")]
     {
         use std::process::Command;
-        match Command::new("lpstat").arg("-p").arg("-d").output() {
+        // Pin the locale: lpstat's status text is gettext-translated, and parse_lpstat
+        // keys off the English words ("printer", "idle", "disabled", ...).
+        match Command::new("lpstat")
+            .env("LC_ALL", "C")
+            .env("LANG", "C")
+            .arg("-p")
+            .arg("-d")
+            .output()
+        {
             Ok(out) => parse_lpstat(&String::from_utf8_lossy(&out.stdout)),
             Err(_) => PrintersData::Unavailable,
         }

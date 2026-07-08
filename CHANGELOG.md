@@ -2,6 +2,72 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.5.0 — 2026-07-08
+
+### Added
+- **Companion mode (experimental preview).** A reimagined, status-by-exception panel
+  (`src/preview/companion.js`/`.css`): a greeting and giant clock, the weather as the
+  hero with a 4-day strip, and a single "All is well" health card (Internet / Wi-Fi /
+  Printer / Sound / Speed / Space) that surfaces plain-language attention cards — with
+  the right settings button — only when something needs attention. The background sky
+  shifts with the time of day. Toggled in **About → Preview** (`experimental_ui` in
+  config; the app reloads on switch). Same collectors, same cadences; DOM is patched
+  in place, never rebuilt on a timer.
+- **Remembered window position.** `WindowEvent::Moved` persists the outer position
+  (throttled to ≥2s, flushed on close) to new `window_x`/`window_y` config fields and
+  restores it via `set_position` before the now-created-hidden window is shown.
+  Best-effort on GNOME Wayland (the compositor ignores client positioning); effective
+  on X11 and Windows.
+- **Single instance.** `tauri-plugin-single-instance`, registered first in the builder;
+  a second launch shows/unminimizes/focuses the running panel instead of spawning a
+  duplicate process — important for an app that autostarts on login.
+- **CI.** `.github/workflows/ci.yml` runs `cargo test` + `cargo check` on PRs and
+  pushes to main — the first automated Linux compile check for `cfg(linux)` code.
+
+### Fixed
+- **Locale-proof collectors.** Every parsing subprocess spawn (`nmcli`, `lpstat`,
+  `wpctl`) now pins `LC_ALL=C`/`LANG=C`. Previously the parsers matched English
+  literals, so on any non-English system Printers listed nothing and Wi-Fi read
+  "unavailable" while connected.
+- **Stale-response race.** The tile loop tags each fetch with a generation and
+  discards out-of-order responses — a slow 20s poll can no longer repaint "Offline"
+  over a fresh D-Bus-pushed "Online" after a reconnect.
+- **First-run ZIP prompt lifecycle.** Opening a new prompt cleanly resolves the
+  previous one (no hung promise, no leaked document keydown listener), and the
+  automatic prompt fires once per session instead of on every window focus after a
+  cancel. The explicit set/change-location affordances still always prompt.
+- **Modal hygiene.** A shared `src/modal.js` closes the active overlay before another
+  opens (no stacked keydown listeners), and `.modal-backdrop` now layers above the
+  bottom-right control pill (the "i" button was clickable through the backdrop).
+- **Clock/date rebuild churn.** Both tiles patch their DOM in place instead of
+  innerHTML-rebuilding every second — the analog/digital toggle keeps focus and hover,
+  and the month calendar rebuilds once a day, not 86,400 times. The analog second hand
+  is omitted under `prefers-reduced-motion` (previously claimed, not implemented).
+- **Weather robustness.** A failed refresh keeps the last good forecast on screen with
+  an "as of" time; the ZIP geocode is cached in config and Open-Meteo's geocoding API
+  backs up zippopotam.us (no longer a single point of failure); one shared reqwest
+  client instead of a fresh TLS setup per fetch; a missing ZIP shows a friendly
+  "Set up weather" button instead of a dead tile.
+- **Memwatch efficiency.** The watcher reloads config only when a save-generation
+  counter changes (was: read + parse `config.json` from disk every 2 seconds,
+  forever). Config writes are atomic (tmp + rename) and serialized so overlapping
+  saves can't drop a patch or expose half-written JSON. Alert tone/speech play on a
+  detached thread so the poll loop keeps ticking during playback.
+- **Internet probe.** The TCP reachability verdict is cached for 20s and tries 443
+  before 53 (some networks block outbound DNS to Cloudflare).
+- Gauges no longer render a stray colored dot at 0% (round linecap on an empty arc);
+  storage reports **decimal GB** to match GNOME Files/Disks; the What's New card caps
+  its height and scrolls (a long release note pushed "Got it" off-screen); theme
+  colors — including High contrast — now reach the internet globe, Wi-Fi arcs, and
+  printer dots; muted volume shows a big crossed speaker and "Sound is off"; the
+  size control clamps to the monitor (font + window shrink together) and no longer
+  re-centers the window on a size change.
+
+### Changed
+- Dead `src/mock.js` removed (it was imported nowhere); `package.json` version aligned
+  with the app version; `libappindicator3-dev` dropped from the release workflow (no
+  tray icon).
+
 ## 0.4.3 — 2026-07-04
 
 ### Added

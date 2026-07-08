@@ -20,9 +20,10 @@ momPanel shows the things that actually matter — at a glance, in plain languag
 ## ✨ Highlights
 
 - 🖼️ **Graphics‑first tiles** — gauges, icons, and big readable numbers instead of walls of text.
+- 🧪 **Companion mode (preview)** — a calmer, reimagined panel: a big clock and the weather up front, and one "All is well" card that only speaks up when something needs attention. Try it in **ℹ️ About → Preview**.
 - 🚨 **Low‑memory guardian** — warns you *before* your computer runs low on memory, with an alert sound and a spoken heads‑up, and names the app hogging memory so you know what to close — even when momPanel is minimized.
 - 🎨 **Make it yours** — pick a ready‑made theme (Midnight, Warm, High‑contrast) or set your own colors for the accent, background, tiles, and gauges.
-- 🪟 **Frameless & fixed** — can't be accidentally moved, resized, or closed.
+- 🪟 **Frameless & tidy** — no window chrome to fumble with; put the panel where you like and it **remembers its spot** next time.
 - 🗣️ **Plain language** — "Plenty of room", "You're connected to the internet", "Out of paper".
 - ❓ **Per‑tile help** — a "?" on each tile pops a simple explanation of what it means.
 - 🔠 **Make everything bigger** — one A− / A+ control scales the whole panel (and the window) for easy reading.
@@ -44,9 +45,9 @@ momPanel shows the things that actually matter — at a glance, in plain languag
 | 🌐 **Internet** | A clear Online / Offline indicator |
 | 🖨️ **Printers** | Your printers and whether they're ready |
 | 🔊 **Volume** | Current sound level / muted |
-| ⛅ **Weather** | Now + a 5‑day forecast (°F) for your ZIP |
+| ⛅ **Weather** | Now + a 7‑day forecast (°F) for your ZIP |
 
-> 🐧 Wi‑Fi, Printers, and Volume read live system info on **Linux** (the primary target). On Windows they show a friendly "not available here" — Windows is for development/testing.
+> 🐧 **Linux is the primary target** — every tile reads live system info there, in any system language. Windows (for development/testing) covers most tiles best‑effort; anything it can't read shows a friendly "not available here".
 
 ## 🚨 Low‑memory guardian
 
@@ -56,7 +57,13 @@ momPanel keeps an eye on memory in the background — even when it's minimized. 
 
 ## 🎨 Make it yours
 
-Prefer a warmer look, or need higher contrast? Open **ℹ️ About → Theme** to pick a preset (**Midnight**, **Warm**, **High‑contrast**) or choose your own colors for the accent, background, tiles, and the usage gauges. Text automatically stays readable on whatever background you pick.
+Prefer a warmer look, or need higher contrast? Open **ℹ️ About → Theme** to pick a preset (**Midnight**, **Warm**, **High‑contrast**) or choose your own colors for the accent, background, tiles, and the usage gauges. Text automatically stays readable on whatever background you pick — and your colors reach every tile, gauge, and status dot.
+
+## 🧪 Companion mode (experimental preview)
+
+The classic panel shows everything, all the time. **Companion mode** flips that around: the things you actually glance at — the time, the date, the weather — are front and center, and all the technical tiles collapse into one calm **"All is well"** card. When something genuinely needs attention (the printer's out of paper, the sound is muted, you're offline), a plain‑language card appears with the right button — and disappears when it's sorted. The background sky even shifts gently from dawn to day to dusk to night.
+
+Turn it on (or back off) anytime in **ℹ️ About → Preview** — momPanel refreshes when you switch.
 
 ## 🖼️ Screenshots
 

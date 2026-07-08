@@ -3,10 +3,16 @@
 //! Linux-only and degrade gracefully when a tool is absent.
 
 use crate::config::AppConfig;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(target_os = "linux")]
 use std::process::Command;
+
+// Held while an alert's tone/speech thread runs. An alert can re-fire every ~30s, so
+// this skips a fresh play while one is still going instead of stacking overlapping
+// players (and racing the volume raise/restore).
+static ALERT_PLAYING: AtomicBool = AtomicBool::new(false);
 
 /// The spoken/notification body. Names the top process; MB under 1024, else GB (1 dp).
 pub fn spoken_message(proc_name: &str, proc_mb: u64) -> String {
@@ -34,12 +40,32 @@ pub fn volume_target(current: f32, floor: f32) -> f32 {
 pub fn fire(app: &AppHandle, cfg: &AppConfig, percent: i64, proc_name: &str, proc_mb: u64, escalate: bool) {
     let body = spoken_message(proc_name, proc_mb);
     notify_critical(percent, &body);
-    if cfg.mem_warn_sound_enabled {
-        play_tone_with_floor(&cfg.mem_warn_sound, cfg.mem_warn_volume_floor);
+
+    // The tone and speech each block for seconds waiting on playback. Run them on a
+    // short-lived detached thread so the memwatch poll loop keeps ticking, but keep the
+    // blocking waits (and the volume floor raise/restore, which must restore only after
+    // the tone finishes) inside it. Skip entirely if a prior alert is still playing.
+    let want_sound = cfg.mem_warn_sound_enabled;
+    let want_speech = cfg.mem_warn_speech_enabled;
+    if (want_sound || want_speech)
+        && ALERT_PLAYING
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+    {
+        let sound = cfg.mem_warn_sound.clone();
+        let floor = cfg.mem_warn_volume_floor;
+        let speech = body.clone();
+        std::thread::spawn(move || {
+            if want_sound {
+                play_tone_with_floor(&sound, floor);
+            }
+            if want_speech {
+                speak(&speech);
+            }
+            ALERT_PLAYING.store(false, Ordering::Release);
+        });
     }
-    if cfg.mem_warn_speech_enabled {
-        speak(&body);
-    }
+
     if escalate {
         show_modal(app, &cfg.mem_warn_color);
     }
@@ -80,7 +106,11 @@ fn play_tone_with_floor(sound: &str, floor: f32) {
 
 #[cfg(target_os = "linux")]
 fn current_volume() -> Option<f32> {
+    // Pin the locale: the fraction is parsed positionally after "Volume:", which wpctl
+    // would otherwise translate.
     let out = Command::new("wpctl")
+        .env("LC_ALL", "C")
+        .env("LANG", "C")
         .args(["get-volume", "@DEFAULT_AUDIO_SINK@"])
         .output()
         .ok()?;
@@ -92,6 +122,8 @@ fn current_volume() -> Option<f32> {
 #[cfg(target_os = "linux")]
 fn set_volume(v: f32) {
     let _ = Command::new("wpctl")
+        .env("LC_ALL", "C")
+        .env("LANG", "C")
         .args(["set-volume", "@DEFAULT_AUDIO_SINK@", &format!("{v:.2}")])
         .status();
 }

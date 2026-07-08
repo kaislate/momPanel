@@ -2,6 +2,17 @@
 // Stored as JSON at <os-config-dir>/momPanel/config.json. Missing/!corrupt -> defaults.
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
+
+/// Bumped on every successful save so cheap pollers (e.g. memwatch) can cache the
+/// loaded config and reload only when it actually changed instead of re-reading and
+/// re-parsing config.json on every tick.
+pub static GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// Serializes the whole load-modify-save so two overlapping patches can't clobber
+/// each other's keys, and so the atomic write below is never interleaved.
+static SAVE_LOCK: Mutex<()> = Mutex::new(());
 
 fn default_clock() -> String {
     "digital".into()
@@ -145,6 +156,25 @@ pub struct AppConfig {
     /// Color theme (curated slots + active preset name).
     #[serde(default)]
     pub theme: Theme,
+    /// Last known panel position (outer, physical pixels) so it reopens where the
+    /// user left it. `None` until moved once — then startup restores it.
+    #[serde(default)]
+    pub window_x: Option<i32>,
+    #[serde(default)]
+    pub window_y: Option<i32>,
+    /// Cached ZIP->lat/lon geocode so the weather refresh doesn't hit the geocoder on
+    /// every poll. Reused while `geo_zip` matches the active ZIP.
+    #[serde(default)]
+    pub geo_zip: Option<String>,
+    #[serde(default)]
+    pub geo_lat: Option<String>,
+    #[serde(default)]
+    pub geo_lon: Option<String>,
+    #[serde(default)]
+    pub geo_place: Option<String>,
+    /// Opt-in flag for unfinished UI the frontend can gate on. Off by default.
+    #[serde(default)]
+    pub experimental_ui: bool,
 }
 
 impl Default for AppConfig {
@@ -168,6 +198,13 @@ impl Default for AppConfig {
             mem_warn_pulse_enabled: true,
             mem_warn_escalate_enabled: true,
             theme: Theme::default(),
+            window_x: None,
+            window_y: None,
+            geo_zip: None,
+            geo_lat: None,
+            geo_lon: None,
+            geo_place: None,
+            experimental_ui: false,
         }
     }
 }
@@ -187,9 +224,37 @@ pub fn load() -> AppConfig {
         .unwrap_or_default()
 }
 
-pub fn save(cfg: &AppConfig) -> Result<(), String> {
+/// Atomic write: serialize to a sibling temp file, then rename over the target so a
+/// concurrent reader (memwatch, another set_config) sees either the old or the new
+/// file in full, never a half-truncated one. Bumps `GENERATION` on success.
+fn write_atomic(cfg: &AppConfig) -> Result<(), String> {
     let s = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
-    std::fs::write(config_path(), s).map_err(|e| e.to_string())
+    let path = config_path();
+    // Same directory as the target so `rename` stays on one filesystem (atomic).
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(&tmp, s).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, &path).map_err(|e| e.to_string())?;
+    GENERATION.fetch_add(1, Ordering::Release);
+    Ok(())
+}
+
+pub fn save(cfg: &AppConfig) -> Result<(), String> {
+    let _guard = SAVE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    write_atomic(cfg)
+}
+
+/// Serialized load-modify-save. The closure edits the loaded config under the save
+/// lock, so overlapping callers can't drop each other's changes. Returns the saved
+/// config. A closure error aborts the save and is propagated unchanged.
+pub fn update<F>(f: F) -> Result<AppConfig, String>
+where
+    F: FnOnce(&mut AppConfig) -> Result<(), String>,
+{
+    let _guard = SAVE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut cfg = load();
+    f(&mut cfg)?;
+    write_atomic(&cfg)?;
+    Ok(cfg)
 }
 
 #[cfg(test)]
@@ -250,5 +315,43 @@ mod tests {
         assert_eq!(c.theme.accent, "#112233");
         assert_eq!(c.theme.preset, "midnight");
         assert_eq!(c.theme.bg, "#0e1119");
+    }
+
+    #[test]
+    fn new_fields_default_when_missing() {
+        let c = AppConfig::default();
+        assert!(c.window_x.is_none());
+        assert!(c.window_y.is_none());
+        assert!(c.geo_zip.is_none());
+        assert!(!c.experimental_ui);
+    }
+
+    #[test]
+    fn new_fields_absent_from_old_config_json() {
+        // A config.json written by an older build lacks these keys entirely.
+        let c: AppConfig = serde_json::from_str(r#"{"zip":"90210"}"#).unwrap();
+        assert!(c.window_x.is_none());
+        assert!(c.geo_lat.is_none());
+        assert!(!c.experimental_ui);
+    }
+
+    #[test]
+    fn window_and_geo_round_trip() {
+        let mut c = AppConfig::default();
+        c.window_x = Some(120);
+        c.window_y = Some(-40);
+        c.geo_zip = Some("90210".into());
+        c.geo_lat = Some("34.0901".into());
+        c.geo_lon = Some("-118.4065".into());
+        c.geo_place = Some("Beverly Hills, CA".into());
+        c.experimental_ui = true;
+        let s = serde_json::to_string(&c).unwrap();
+        let back: AppConfig = serde_json::from_str(&s).unwrap();
+        assert_eq!(back.window_x, Some(120));
+        assert_eq!(back.window_y, Some(-40));
+        assert_eq!(back.geo_zip.as_deref(), Some("90210"));
+        assert_eq!(back.geo_lat.as_deref(), Some("34.0901"));
+        assert_eq!(back.geo_place.as_deref(), Some("Beverly Hills, CA"));
+        assert!(back.experimental_ui);
     }
 }

@@ -6,6 +6,11 @@
 
 const ZIP_RE = /^\d{5}$/;
 
+// The close() of the prompt currently on screen, if any. Opening a new prompt resolves
+// and tears down the previous one first so its promise settles and its document keydown
+// listener can't leak when we blow away #modal-root below.
+let activeClose = null;
+
 export function promptZip(currentZip = "") {
   return new Promise((resolve) => {
     const root = document.getElementById("modal-root");
@@ -13,7 +18,9 @@ export function promptZip(currentZip = "") {
       resolve(null);
       return;
     }
-    // Replace any existing modal.
+    // Cleanly close any prompt still open (resolves it null, drops its listener) before
+    // we replace the modal DOM.
+    if (activeClose) activeClose(null);
     root.innerHTML = "";
 
     const backdrop = document.createElement("div");
@@ -24,7 +31,8 @@ export function promptZip(currentZip = "") {
 
     const title = document.createElement("div");
     title.className = "tile-title";
-    title.textContent = "Where do you live?";
+    // A fresh install (no ZIP yet) gets a warmer opening than the change-location flow.
+    title.textContent = currentZip ? "Where do you live?" : "Welcome! Where do you live?";
 
     const hint = document.createElement("div");
     hint.className = "tile-sub";
@@ -71,6 +79,7 @@ export function promptZip(currentZip = "") {
     function close(result) {
       if (settled) return;
       settled = true;
+      if (activeClose === close) activeClose = null;
       root.innerHTML = "";
       document.removeEventListener("keydown", onKey);
       resolve(result);
@@ -103,6 +112,7 @@ export function promptZip(currentZip = "") {
       if (e.target === backdrop) close(null);
     });
     document.addEventListener("keydown", onKey);
+    activeClose = close;
 
     // Focus after the element is in the DOM.
     requestAnimationFrame(() => {

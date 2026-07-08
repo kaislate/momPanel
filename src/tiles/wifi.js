@@ -6,17 +6,25 @@ import { tile, mutedGraphic } from "../layout.js";
 // Nested arcs filled proportionally to signal strength — one gauge across rings.
 function signalArcs(percent) {
   const p = Math.max(0, Math.min(100, percent));
-  const color = p >= 67 ? "#5bd6a0" : p >= 34 ? "#ffb347" : "#ff5d5d";
+  // Theme-aware colors (SVG attributes can't resolve var(), so they go via style).
+  const color =
+    p >= 67 ? "var(--gauge-ok)" : p >= 34 ? "var(--gauge-warn)" : "var(--gauge-bad)";
   const radii = [18, 27, 36, 45];
   const rings = radii
     .map((r) => {
       const circ = 2 * Math.PI * r;
       const dash = (p / 100) * circ;
+      // Omit the colored ring when its dash rounds to 0, else the round linecap leaves
+      // a stray dot at the start of the arc.
+      const arc =
+        Math.round(dash) > 0
+          ? `<circle cx="50" cy="50" r="${r}" fill="none" style="stroke:${color}" stroke-width="6" ` +
+            `stroke-linecap="round" stroke-dasharray="${dash} ${circ}" ` +
+            `transform="rotate(-90 50 50)" />`
+          : "";
       return (
-        `<circle cx="50" cy="50" r="${r}" fill="none" stroke="#2a3146" stroke-width="6" />` +
-        `<circle cx="50" cy="50" r="${r}" fill="none" stroke="${color}" stroke-width="6" ` +
-        `stroke-linecap="round" stroke-dasharray="${dash} ${circ}" ` +
-        `transform="rotate(-90 50 50)" />`
+        `<circle cx="50" cy="50" r="${r}" fill="none" style="stroke:var(--gauge-track)" stroke-width="6" />` +
+        arc
       );
     })
     .join("");

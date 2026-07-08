@@ -277,12 +277,25 @@ body {
 
 /* Wi-Fi connected, strength unknown */
 .wifi-connected {
-  color: #5bd6a0;
+  color: var(--ok);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .wifi-connected svg {
+  width: 5rem;
+  height: 5rem;
+}
+
+/* Volume muted: the crossed speaker IS the graphic — "sound is off" is the
+   headline for this user, not a footnote under a level gauge. */
+.volume-muted {
+  color: var(--warn);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.volume-muted svg {
   width: 5rem;
   height: 5rem;
 }
@@ -656,9 +669,13 @@ body.help-hidden .tile-help {
   background: #2c3450;
 }
 
-/* "What's new" update popup */
+/* "What's new" update popup. Capped and scrollable — a release with several notes
+   must never push the "Got it" button past the window edge. */
 .whatsnew-card {
-  width: 360px;
+  width: 400px;
+  max-width: 92vw;
+  max-height: 85vh;
+  overflow-y: auto;
   text-align: center;
 }
 .whatsnew-emoji {
@@ -706,6 +723,9 @@ body.help-hidden .tile-help {
   align-items: center;
   justify-content: center;
   animation: fade 0.2s ease;
+  /* Sit above the fixed .scale-control pill (z-index:50) so an open modal can't be
+     clicked through in the bottom-right corner. */
+  z-index: 100;
 }
 @keyframes fade {
   from {
@@ -769,6 +789,12 @@ body.help-hidden .tile-help {
   color: var(--accent);
   cursor: pointer;
   text-decoration: none;
+}
+/* "as of 2:15 PM" marker shown when a failed refresh falls back to the last
+   good forecast. */
+.wx-stale {
+  font-size: 0.8rem;
+  color: var(--ink-dim);
 }
 
 .modal-card input {

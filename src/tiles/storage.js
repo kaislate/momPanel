@@ -45,6 +45,9 @@ function draw(el, data) {
       `${arcGauge(displayPct, displayPct + "%", modeLabel, usedPct)}</div></div>`,
     foot:
       `<div class="storage-detail">${detail}</div>` +
+      // The flip affordance was invisible (title tooltips don't exist for this
+      // user) — say it in words, and say what tapping will show next.
+      `<div class="btn-note">tap the circle to show ${isFull ? "free space" : "how full it is"}</div>` +
       `<div class="tile-status">${storageMessage(used_percent)}</div>` +
       `<button class="tile-btn" type="button">Open storage settings</button>`,
   });

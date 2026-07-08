@@ -4,6 +4,7 @@ import { readWeather, getConfig, setConfig } from "../api.js";
 import { promptZip } from "../firstrun.js";
 import { refreshTile } from "../tiles.js";
 import { tile, mutedGraphic } from "../layout.js";
+import { escapeHtml } from "../escape.js";
 
 function condition(code) {
   if (code === 0) return "clear";
@@ -36,6 +37,12 @@ function icon(cond, size = 56) {
 }
 
 const round = (n) => Math.round(Number(n));
+
+// Auto-prompt for a ZIP at most once per app session. fetch() runs on every poll and
+// visibilitychange refresh, so without this a user who cancels the first prompt would
+// get re-prompted on every window focus. The explicit "set/change location" link still
+// always prompts (it calls promptZip directly in wireChangeLink).
+let autoPrompted = false;
 
 // Short weekday from a "YYYY-MM-DD" string, parsed in local time to avoid the UTC
 // off-by-one. The first forecast day is labeled "Today".
@@ -83,12 +90,6 @@ function forecastDay(day, index) {
   );
 }
 
-function escapeHtml(s) {
-  return String(s).replace(
-    /[&<>"']/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
-  );
-}
 
 export function register(registerTile) {
   registerTile({
@@ -97,60 +98,89 @@ export function register(registerTile) {
     intervalMs: 1200000, // 20 minutes
     async fetch() {
       let { zip } = await getConfig();
-      if (!zip) {
+      if (!zip && !autoPrompted) {
+        autoPrompted = true;
         const entered = await promptZip("");
         if (entered) {
           zip = entered;
           await setConfig({ zip });
         }
       }
-      return zip ? await readWeather(zip) : { state: "unavailable" };
+      return zip ? await readWeather(zip) : { state: "nozip" };
     },
     render(el, data) {
-      if (!data || data.state !== "ok") {
+      if (data && data.state === "ok") {
+        lastGood = { data, at: new Date() };
+        renderForecast(el, data);
+        return;
+      }
+      // A failed refresh degrades to the last good forecast (with a timestamp)
+      // instead of blanking a tile that was fine twenty minutes ago.
+      if (lastGood) {
+        renderForecast(el, lastGood.data, lastGood.at);
+        return;
+      }
+      if (data && data.state === "nozip") {
+        // No ZIP yet (first run was cancelled): one big friendly way in, not a
+        // dead tile with a tiny text link.
         el.innerHTML = tile({
           title: "Weather",
           graphic: mutedGraphic(icon("cloudy")),
           foot:
-            `<div class="tile--unavailable">Weather isn't available right now.</div>` +
-            `<a href="#" class="wx-change">set location</a>`,
+            `<div class="tile-sub">I can show your local weather.</div>` +
+            `<button class="tile-btn" type="button" data-wx-change>Set up weather</button>`,
         });
         wireChangeLink(el);
         return;
       }
-      const cond = condition(data.code);
-      const days = Array.isArray(data.days) ? data.days : [];
-      const todayProb = days[0]?.precip_prob ?? 0;
-      // Custom layout for this double-height tile: current conditions on top, the
-      // 5-day forecast list below.
-      el.innerHTML =
-        `<div class="tile-title">${escapeHtml(data.place ?? "Weather")}</div>` +
-        `<div class="wx-current">` +
-        `<div class="wx-row">${icon(cond)}` +
-        `<div class="tile-big">${round(data.temp_f)}&deg;</div></div>` +
-        `<div class="tile-status">${describe(data.code, todayProb)}</div>` +
-        `<div class="tile-sub">H ${round(data.high_f)}&deg; &middot; L ${round(
-          data.low_f
-        )}&deg;</div></div>` +
-        `<div class="wx-forecast">${days
-          .map((d, i) => forecastDay(d, i))
-          .join("")}</div>` +
-        `<a href="#" class="wx-change">change location</a>`;
+      el.innerHTML = tile({
+        title: "Weather",
+        graphic: mutedGraphic(icon("cloudy")),
+        foot:
+          `<div class="tile--unavailable">Weather isn't available right now.</div>` +
+          `<a href="#" class="wx-change">set location</a>`,
+      });
       wireChangeLink(el);
     },
   });
 }
 
+// Last successful payload, so a network blip never blanks the forecast mid-day.
+let lastGood = null;
+
+// Custom layout for this double-height tile: current conditions on top, the 5-day
+// forecast list below. `staleAt` marks a remembered (not fresh) forecast.
+function renderForecast(el, data, staleAt = null) {
+  const cond = condition(data.code);
+  const days = Array.isArray(data.days) ? data.days : [];
+  const todayProb = days[0]?.precip_prob ?? 0;
+  const staleNote = staleAt
+    ? `as of ${staleAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · `
+    : "";
+  el.innerHTML =
+    `<div class="tile-title">${escapeHtml(data.place ?? "Weather")}</div>` +
+    `<div class="wx-current">` +
+    `<div class="wx-row">${icon(cond)}` +
+    `<div class="tile-big">${round(data.temp_f)}&deg;</div></div>` +
+    `<div class="tile-status">${describe(data.code, todayProb)}</div>` +
+    `<div class="tile-sub">H ${round(data.high_f)}&deg; &middot; L ${round(
+      data.low_f
+    )}&deg;</div></div>` +
+    `<div class="wx-forecast">${days.map((d, i) => forecastDay(d, i)).join("")}</div>` +
+    `<span class="wx-stale">${staleNote}</span><a href="#" class="wx-change">change location</a>`;
+  wireChangeLink(el);
+}
+
 function wireChangeLink(el) {
-  const link = el.querySelector(".wx-change");
-  if (!link) return;
-  link.addEventListener("click", async (e) => {
-    e.preventDefault();
-    const { zip } = await getConfig();
-    const entered = await promptZip(zip ?? "");
-    if (entered) {
-      await setConfig({ zip: entered });
-      refreshTile("weather");
-    }
-  });
+  el.querySelectorAll(".wx-change, [data-wx-change]").forEach((link) =>
+    link.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const { zip } = await getConfig();
+      const entered = await promptZip(zip ?? "");
+      if (entered) {
+        await setConfig({ zip: entered });
+        refreshTile("weather");
+      }
+    })
+  );
 }

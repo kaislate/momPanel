@@ -29,10 +29,16 @@ export function register(registerTile) {
         return;
       }
       const { level_percent, muted } = data;
+      // Muted is the headline, not a footnote: for a non-technical user "the sound
+      // is off" matters far more than what the level would be if it weren't.
       el.innerHTML = tile({
         title: "Volume",
-        graphic: arcGauge(level_percent, level_percent + "%", muted ? "Muted" : ""),
-        foot: `<button class="tile-btn" type="button">Open sound settings</button>`,
+        graphic: muted
+          ? `<div class="volume-muted">${speakerIcon(true)}</div>`
+          : arcGauge(level_percent, level_percent + "%", ""),
+        foot:
+          (muted ? `<div class="tile-status">Sound is off</div>` : "") +
+          `<button class="tile-btn" type="button">Open sound settings</button>`,
       });
       el.querySelector(".tile-btn")?.addEventListener("click", () =>
         openSettings("sound")

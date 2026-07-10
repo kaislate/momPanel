@@ -2,6 +2,21 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.5.1 — 2026-07-10
+
+### Fixed
+- **Printer no longer shows "ready" when it's powered off.** A *permanent* CUPS queue
+  (a driverless `ipp://` queue backed by ipp-usb — used so the printer is always
+  available to print to) always reports `idle`, so the Printers collector always
+  reported "ready" even with the printer physically off. On Linux, `read()` now looks
+  up each queue's device URI via `lpstat -v` and, for network backends
+  (`ipp`/`ipps`/`http`/`socket`), TCP-probes the endpoint; a printer reported "ready"
+  whose endpoint is unreachable is downgraded to "offline". ipp-usb only listens on its
+  port while the printer is on, so the probe doubles as a reliable presence check. Local
+  backends (`usb://`, `hp:/`, …) are left as-is, and `out_of_paper`/`disabled` states are
+  never overridden. Adds helpers `device_uris()`, `network_endpoint()` (unit-tested), and
+  `endpoint_reachable()` in `collectors/printers.rs`.
+
 ## 0.5.0 — 2026-07-08
 
 ### Added

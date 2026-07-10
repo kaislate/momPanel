@@ -31,7 +31,7 @@ pub fn read() -> PrintersData {
         use std::process::Command;
         // Pin the locale: lpstat's status text is gettext-translated, and parse_lpstat
         // keys off the English words ("printer", "idle", "disabled", ...).
-        match Command::new("lpstat")
+        let mut data = match Command::new("lpstat")
             .env("LC_ALL", "C")
             .env("LANG", "C")
             .arg("-p")
@@ -39,8 +39,29 @@ pub fn read() -> PrintersData {
             .output()
         {
             Ok(out) => parse_lpstat(&String::from_utf8_lossy(&out.stdout)),
-            Err(_) => PrintersData::Unavailable,
+            Err(_) => return PrintersData::Unavailable,
+        };
+        // A *permanent* CUPS queue (e.g. a driverless ipp:// queue backed by ipp-usb)
+        // always reports "idle" -> "ready" even when the physical printer is powered
+        // off. For network-backed queues, actively probe the device endpoint: if it's
+        // unreachable, downgrade the reported "ready" to "offline". (ipp-usb only
+        // listens on its port while the printer is on, so this is a reliable tell.)
+        if let PrintersData::Ok { printers, .. } = &mut data {
+            let devices = device_uris();
+            for p in printers.iter_mut() {
+                if p.status != "ready" {
+                    continue; // never override out_of_paper / already-offline
+                }
+                if let Some((host, port)) =
+                    devices.get(&p.name).and_then(|uri| network_endpoint(uri))
+                {
+                    if !endpoint_reachable(&host, port) {
+                        p.status = "offline".to_string();
+                    }
+                }
+            }
         }
+        data
     }
 
     #[cfg(target_os = "windows")]
@@ -66,6 +87,68 @@ pub fn read() -> PrintersData {
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
         PrintersData::Unavailable
+    }
+}
+
+/// Map of printer name -> CUPS device URI, parsed from `lpstat -v`
+/// (lines like "device for EPSON_ET3760: ipp://localhost:60000/ipp/print").
+/// Returns an empty map on any failure.
+#[cfg(target_os = "linux")]
+fn device_uris() -> std::collections::HashMap<String, String> {
+    use std::process::Command;
+    let mut map = std::collections::HashMap::new();
+    if let Ok(out) = Command::new("lpstat")
+        .env("LC_ALL", "C")
+        .env("LANG", "C")
+        .arg("-v")
+        .output()
+    {
+        for line in String::from_utf8_lossy(&out.stdout).lines() {
+            if let Some(rest) = line.trim().strip_prefix("device for ") {
+                if let Some((name, uri)) = rest.split_once(':') {
+                    map.insert(name.trim().to_string(), uri.trim().to_string());
+                }
+            }
+        }
+    }
+    map
+}
+
+/// Extract (host, port) from a *network* device URI (ipp/ipps/http/https/socket).
+/// Returns None for local backends (usb://, hp:/, file://, dnssd://, ...) that
+/// can't be TCP-probed. Pure/host-agnostic so it is unit-testable everywhere.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn network_endpoint(uri: &str) -> Option<(String, u16)> {
+    let (scheme, rest) = uri.split_once("://")?;
+    let default_port: u16 = match scheme {
+        "ipp" | "http" => 631, // ipp-usb uses an explicit port anyway; 631 is the IPP default
+        "ipps" | "https" => 443,
+        "socket" => 9100,
+        _ => return None, // usb, hp, file, dnssd, etc. -> not TCP-probeable
+    };
+    let authority = rest.split('/').next().unwrap_or("");
+    let authority = authority.rsplit('@').next().unwrap_or(authority); // drop any user@ prefix
+    let (host, port) = match authority.rsplit_once(':') {
+        Some((h, p)) => (h, p.parse().unwrap_or(default_port)),
+        None => (authority, default_port),
+    };
+    if host.is_empty() {
+        return None;
+    }
+    Some((host.to_string(), port))
+}
+
+/// True if a TCP connection to host:port succeeds quickly. ipp-usb only listens on
+/// its port while the printer is powered on, so this doubles as a presence check.
+#[cfg(target_os = "linux")]
+fn endpoint_reachable(host: &str, port: u16) -> bool {
+    use std::net::{TcpStream, ToSocketAddrs};
+    use std::time::Duration;
+    match (host, port).to_socket_addrs() {
+        Ok(mut addrs) => {
+            addrs.any(|a| TcpStream::connect_timeout(&a, Duration::from_millis(1200)).is_ok())
+        }
+        Err(_) => false,
     }
 }
 
@@ -212,6 +295,26 @@ system default destination: Office_LaserJet\n";
         let (printers, default_name) = ok_parts(&data);
         assert!(printers.is_empty());
         assert!(default_name.is_none());
+    }
+
+    #[test]
+    fn network_endpoint_parses_probeable_uris_and_skips_local() {
+        // ipp-usb bridge (the real case): explicit port must be honored.
+        assert_eq!(
+            network_endpoint("ipp://localhost:60000/ipp/print"),
+            Some(("localhost".to_string(), 60000))
+        );
+        // scheme defaults when no port is given.
+        assert_eq!(network_endpoint("ipp://host/ipp"), Some(("host".to_string(), 631)));
+        assert_eq!(
+            network_endpoint("ipps://printer.local/ipp/print"),
+            Some(("printer.local".to_string(), 443))
+        );
+        assert_eq!(network_endpoint("socket://10.0.0.5"), Some(("10.0.0.5".to_string(), 9100)));
+        // Local backends can't be TCP-probed -> None (status left as lpstat reported).
+        assert_eq!(network_endpoint("usb://EPSON/ET-3760%20Series?serial=X"), None);
+        assert_eq!(network_endpoint("hp:/usb/HP?serial=Y"), None);
+        assert_eq!(network_endpoint("implicitclass://EPSON_ET_3760_Series_USB/"), None);
     }
 
     #[test]

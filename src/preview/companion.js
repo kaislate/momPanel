@@ -63,8 +63,9 @@ const round = (n) => Math.round(Number(n));
 // ---------- Time-of-day: greeting + sky ----------
 
 function greetingFor(h) {
-  if (h >= 5 && h < 12) return "Good morning";
-  if (h >= 12 && h < 17) return "Good afternoon";
+  if (h < 5) return "Good night"; // the wee hours aren't "evening"
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
   return "Good evening";
 }
 
@@ -405,7 +406,20 @@ function renderHealth() {
   if (key === state.lastAttentionKey) return;
   state.lastAttentionKey = key;
 
-  state.els.attention.innerHTML = attns
+  const box = state.els.attention;
+  clearTimeout(state._attnClear);
+
+  if (attns.length === 0) {
+    // Collapse gracefully first (the row's max-height animates closed while the
+    // resolved cards are still inside), then drop the DOM once it's hidden.
+    box.classList.remove("has-cards");
+    state._attnClear = setTimeout(() => {
+      if (!box.classList.contains("has-cards")) box.innerHTML = "";
+    }, 550);
+    return;
+  }
+
+  box.innerHTML = attns
     .map(
       (a) =>
         `<div class="comp-card ${a.level}" data-card="${a.id}">` +
@@ -416,9 +430,11 @@ function renderHealth() {
         `</div>`
     )
     .join("");
-  state.els.attention.querySelectorAll("[data-target]").forEach((btn) =>
+  box.querySelectorAll("[data-target]").forEach((btn) =>
     btn.addEventListener("click", () => openSettings(btn.dataset.target))
   );
+  // Next frame so the max-height transition runs (content above glides up).
+  requestAnimationFrame(() => box.classList.add("has-cards"));
 }
 
 // ---------- Data loop: one 5s scheduler, per-concern periods, paused when hidden ----
@@ -449,7 +465,14 @@ export async function initCompanion() {
   link.rel = "stylesheet";
   link.href = "preview/companion.css";
   document.head.appendChild(link);
+  // Both roots take the class: html must go transparent too or it paints an opaque
+  // backdrop behind the translucent body sky.
+  document.documentElement.classList.add("companion");
   document.body.classList.add("companion");
+
+  // User-tunable sky opacity (About → General). Floor matches the backend clamp.
+  const alpha = Math.min(1, Math.max(0.2, Number(cfg.companion_bg_opacity ?? 1)));
+  document.documentElement.style.setProperty("--comp-bg-alpha", String(alpha));
 
   buildSkeleton(document.getElementById("grid"));
 

@@ -9,6 +9,7 @@
 [![Latest release](https://img.shields.io/github/v/release/kaislate/momPanel?label=release)](https://github.com/kaislate/momPanel/releases/latest)
 [![Linux](https://img.shields.io/badge/Linux-Zorin%20OS-1793D1?logo=linux&logoColor=white)](#-install)
 [![Windows](https://img.shields.io/badge/Windows-testing-0078D6?logo=windows&logoColor=white)](#-install)
+[![macOS](https://img.shields.io/badge/macOS-best%20effort-111111?logo=apple&logoColor=white)](#-install)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
 
 </div>
@@ -26,7 +27,8 @@ momPanel shows the things that actually matter — at a glance, in plain languag
 - 🪟 **Frameless & tidy** — no window chrome to fumble with; put the panel where you like and it **remembers its spot** next time.
 - 🗣️ **Plain language** — "Plenty of room", "You're connected to the internet", "Out of paper".
 - ❓ **Per‑tile help** — a "?" on each tile pops a simple explanation of what it means.
-- 🔠 **Make everything bigger** — one A− / A+ control scales the whole panel (and the window) for easy reading.
+- 🔠 **Make everything bigger** — A− / A+ controls scale the whole panel (and the window) for easy reading, and never past the edge of your screen.
+- 🧹 **Controls that stay out of the way** — the About / help / size buttons live behind one faint ⚙ dot in the corner; tap it when you need them.
 - 🧘 **Calm mode** — honors your system "reduce motion" setting.
 - 🖱️ **Safe shortcuts** — friendly buttons that *open the right settings screen*; momPanel never changes settings itself.
 - 🔄 **Auto‑updates** — quietly updates itself from GitHub Releases (signed).
@@ -63,7 +65,7 @@ Prefer a warmer look, or need higher contrast? Open **ℹ️ About → Theme** t
 
 The classic panel shows everything, all the time. **Companion mode** flips that around: the things you actually glance at — the time, the date, the weather — are front and center, and all the technical tiles collapse into one calm **"All is well"** card. When something genuinely needs attention (the printer's out of paper, the sound is muted, you're offline), a plain‑language card appears with the right button — and disappears when it's sorted. The background sky even shifts gently from dawn to day to dusk to night.
 
-Turn it on (or back off) anytime in **ℹ️ About → Preview** — momPanel refreshes when you switch.
+Turn it on (or back off) anytime in **ℹ️ About → General** — momPanel refreshes when you switch. Companion mode runs in a smaller, cozier window, and you can even make its background **see‑through** (from solid to barely‑there) so it floats over your desktop.
 
 ## 🖼️ Screenshots
 
@@ -96,6 +98,10 @@ momPanel registers itself to **start automatically on login** and keeps itself *
 ### 🪟 Windows — for testing
 
 Download and run the **`_x64-setup.exe`** (or the `.msi`) from the [latest release](https://github.com/kaislate/momPanel/releases/latest).
+
+### 🍎 macOS — best effort
+
+Download the **`.dmg`** (universal — Intel & Apple Silicon) from the [latest release](https://github.com/kaislate/momPanel/releases/latest). The app isn't Apple‑notarized, so the **first** launch is: right‑click the app → **Open** → Open. Printers, volume, and internet report live; Wi‑Fi shows a friendly "not available".
 
 ## 🛠️ Build from source
 

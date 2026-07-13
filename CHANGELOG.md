@@ -2,6 +2,44 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.6.0 — 2026-07-13
+
+### Added
+- **macOS support (best-effort tier, like Windows).** `open_settings` gains a macOS
+  branch (`open x-apple.systempreferences:` extension URLs for wifi/sound/printers,
+  Finder for storage) with the same allow-list pattern; `open_github` gains an `open`
+  branch. Collectors: printers widened to `any(linux, macos)` (macOS ships CUPS — same
+  `lpstat` output, device-URI probe included), volume via `osascript` (pure
+  `parse_osascript` + fixture tests), internet uses the shared cached TCP probe,
+  Wi-Fi stays a calm Unavailable (no reliable non-deprecated CLI). Release workflow
+  builds a universal macOS bundle (`--target universal-apple-darwin`; minisign-signed,
+  not Apple-notarized — first launch is right-click → Open). CI adds a `cargo check`
+  job on macos-latest.
+
+### Changed
+- **Controls corner redesign.** The always-visible i/?/eye/A−/A+ pill is now a single
+  faint gear (35% opacity at rest) that expands into the tray on demand and collapses
+  on click-away — controls no longer crowd or overlap the tiles.
+- **About panel is one wide pane.** `min(900px, 94vw)`, identity header with slim
+  action buttons and an ✕ close, three columns (General / Memory alerts / Appearance);
+  every setting visible with no scrolling. The Companion toggle lives under General.
+- **Companion mode window is right-sized.** New `setPanelBase()` in scale.js lets the
+  mode pick its canvas: 880×560 (vs the grid's 1100×680), with spacing/typography
+  tuned to match and the attention row keeping clear of the controls corner. Late-night
+  hours now greet with "Good night" instead of "Good evening".
+- **Companion sky transparency.** The window is now created `transparent: true`
+  (+ `macOSPrivateApi`/`macos-private-api` feature for mac); companion's time-of-day
+  gradient moved to a `body::before` backdrop layer whose opacity is user-tunable
+  (About → General → "Companion background", Solid→Very clear). Persisted as
+  `companion_bg_opacity` (backend-clamped to 0.2–1.0 so the panel can't vanish);
+  applied live. The classic grid keeps its opaque background — no visual change there.
+- **Graceful attention cards.** The companion attention row animates open/closed
+  (max-height + margin transition on the grid's auto row), so the hero/health content
+  glides to make room instead of snapping; resolved cards collapse first and are
+  removed from the DOM after the transition. Honors `prefers-reduced-motion`.
+- In-app changelog gained the missing 0.5.1 entry (its What's New popup previously
+  showed the generic fallback).
+
 ## 0.5.1 — 2026-07-10
 
 ### Fixed

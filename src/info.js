@@ -1,5 +1,6 @@
-// "About momPanel" overlay: logo + name, version, Visit GitHub, Check for updates,
-// and an auto-update toggle (on by default). Rendered into #modal-root.
+// "About momPanel" overlay, laid out as one wide pane so every setting is visible
+// at once (no scrolling to discover options): an identity header with the action
+// buttons, then three columns — General, Memory alerts, Appearance.
 import {
   appVersion,
   osInfo,
@@ -49,47 +50,65 @@ export async function openInfo() {
     .join("");
   const warnColor = cfg.mem_warn_color || "#D97706";
 
+  const check = (attr, on, label) =>
+    `<label class="info-auto"><input type="checkbox" ${attr} ${on ? "checked" : ""} /><span>${label}</span></label>`;
+
   // Close any overlay already open (this open* is async, so one could be) before we
   // overwrite #modal-root, so its keydown listener doesn't leak.
   closeActiveModal();
 
   root.innerHTML =
     `<div class="modal-backdrop"><div class="modal-card info-card">` +
-    `<div class="info-logo">${logoSvg(96)}</div>` +
+    `<button class="info-x" data-action="close" aria-label="Close">&times;</button>` +
+    `<div class="info-head">` +
+    `<div class="info-logo">${logoSvg(60)}</div>` +
+    `<div class="info-id">` +
     `<div class="info-name">momPanel</div>` +
-    `<div class="info-version">Version ${escapeHtml(version || "—")}</div>` +
-    `<div class="info-os">Running on ${escapeHtml(os || "this computer")}</div>` +
+    `<div class="info-version">Version ${escapeHtml(version || "—")} &middot; ${escapeHtml(os || "this computer")}</div>` +
     `<div class="info-status" aria-live="polite"></div>` +
-    `<button class="tile-btn info-btn" data-action="updates">Check for updates</button>` +
-    `<button class="tile-btn info-btn" data-action="whatsnew">What's New</button>` +
-    `<button class="tile-btn info-btn" data-action="github">Visit GitHub</button>` +
-    `<div class="info-section">Startup &amp; updates</div>` +
-    `<label class="info-auto"><input type="checkbox" data-startup ${
-      autostart ? "checked" : ""
-    } /><span>Start automatically when I log in</span></label>` +
-    `<label class="info-auto"><input type="checkbox" data-auto ${
-      cfg.auto_update ? "checked" : ""
-    } /><span>Update automatically</span></label>` +
-    `<div class="info-section">Memory alerts</div>` +
-    `<label class="info-auto"><input type="checkbox" data-memwarn ${
-      cfg.mem_warn_enabled ? "checked" : ""
-    } /><span>Warn me about high memory</span></label>` +
-    `<label class="info-row"><span>Warn when memory reaches</span>` +
-    `<select data-mempct>${pctOptions}</select></label>` +
+    `</div>` +
+    `<div class="info-actions">` +
+    `<button class="tile-btn info-btn--slim" data-action="updates">Check for updates</button>` +
+    `<button class="tile-btn info-btn--slim" data-action="whatsnew">What's New</button>` +
+    `<button class="tile-btn info-btn--slim" data-action="github">GitHub</button>` +
+    `</div>` +
+    `</div>` +
+    `<div class="info-cols">` +
+    // --- Column 1: General ---
+    `<section class="info-col"><h3 class="info-section">General</h3>` +
+    check("data-startup", autostart, "Start automatically when I log in") +
+    check("data-auto", cfg.auto_update, "Update automatically") +
+    check(
+      "data-experimental",
+      cfg.experimental_ui,
+      "Try the new look — Companion mode (experimental). momPanel refreshes when you switch."
+    ) +
+    `<label class="info-row"><span>Companion background</span>` +
+    `<select data-compbg>` +
+    [
+      [1, "Solid"],
+      [0.85, "Slightly clear"],
+      [0.7, "Half clear"],
+      [0.55, "Mostly clear"],
+      [0.4, "Very clear"],
+    ]
+      .map(([v, l]) => {
+        const cur = Number(cfg.companion_bg_opacity ?? 1);
+        return `<option value="${v}" ${Math.abs(cur - v) < 0.01 ? "selected" : ""}>${l}</option>`;
+      })
+      .join("") +
+    `</select></label>` +
+    `</section>` +
+    // --- Column 2: Memory alerts ---
+    `<section class="info-col"><h3 class="info-section">Memory alerts</h3>` +
+    check("data-memwarn", cfg.mem_warn_enabled, "Warn me about high memory") +
+    `<label class="info-row"><span>Warn at</span><select data-mempct>${pctOptions}</select></label>` +
     `<label class="info-row"><span>Warning color</span>` +
     `<input type="color" data-memcolor value="${warnColor}" /></label>` +
-    `<label class="info-auto"><input type="checkbox" data-memsound ${
-      cfg.mem_warn_sound_enabled ? "checked" : ""
-    } /><span>Play an alert sound</span></label>` +
-    `<label class="info-auto"><input type="checkbox" data-memspeech ${
-      cfg.mem_warn_speech_enabled ? "checked" : ""
-    } /><span>Speak the warning aloud</span></label>` +
-    `<label class="info-auto"><input type="checkbox" data-mempulse ${
-      cfg.mem_warn_pulse_enabled ? "checked" : ""
-    } /><span>Repeat until resolved</span></label>` +
-    `<label class="info-auto"><input type="checkbox" data-memescalate ${
-      cfg.mem_warn_escalate_enabled ? "checked" : ""
-    } /><span>Pop a dialog if ignored</span></label>` +
+    check("data-memsound", cfg.mem_warn_sound_enabled, "Play an alert sound") +
+    check("data-memspeech", cfg.mem_warn_speech_enabled, "Speak the warning aloud") +
+    check("data-mempulse", cfg.mem_warn_pulse_enabled, "Repeat until resolved") +
+    check("data-memescalate", cfg.mem_warn_escalate_enabled, "Pop a dialog if ignored") +
     `<label class="info-row"><span>Alert sound</span>` +
     `<select data-memsoundchoice>` +
     [
@@ -102,13 +121,15 @@ export async function openInfo() {
       .map(([v, l]) => `<option value="${v}" ${cfg.mem_warn_sound === v ? "selected" : ""}>${l}</option>`)
       .join("") +
     `</select></label>` +
-    `<label class="info-row"><span>Minimum alert volume</span>` +
+    `<label class="info-row"><span>Min. alert volume</span>` +
     `<select data-memfloor>` +
     [50, 60, 70, 80, 90, 100]
       .map((v) => `<option value="${v / 100}" ${Math.round((cfg.mem_warn_volume_floor || 0.6) * 100) === v ? "selected" : ""}>${v}%</option>`)
       .join("") +
     `</select></label>` +
-    `<div class="info-section">Theme</div>` +
+    `</section>` +
+    // --- Column 3: Appearance ---
+    `<section class="info-col"><h3 class="info-section">Appearance</h3>` +
     `<label class="info-row"><span>Preset</span><select data-preset>${presetOpts}</select></label>` +
     swatch("accent", "Accent") +
     swatch("bg", "Background") +
@@ -116,13 +137,9 @@ export async function openInfo() {
     swatch("gauge_ok", "Gauge · healthy") +
     swatch("gauge_warn", "Gauge · getting full") +
     swatch("gauge_bad", "Gauge · critical") +
-    `<button class="tile-btn info-btn" data-action="theme-reset">Reset to default</button>` +
-    `<div class="info-section">Preview</div>` +
-    `<label class="info-auto"><input type="checkbox" data-experimental ${
-      cfg.experimental_ui ? "checked" : ""
-    } /><span>Try the new look — Companion mode (experimental). momPanel refreshes when you switch.</span></label>` +
-    `<button class="tile-btn info-close" data-action="close">Close</button>` +
-    `</div></div>`;
+    `<button class="tile-btn info-btn--slim info-reset" data-action="theme-reset">Reset to default</button>` +
+    `</section>` +
+    `</div></div></div>`;
 
   const close = () => {
     root.innerHTML = "";
@@ -199,6 +216,14 @@ export async function openInfo() {
   root.querySelector("[data-experimental]").addEventListener("change", async (e) => {
     await setConfig({ experimental_ui: e.target.checked });
     location.reload();
+  });
+
+  // Companion sky opacity: persist and apply live (the CSS var is only consumed by
+  // companion mode, so this is a harmless no-op in the classic grid).
+  root.querySelector("[data-compbg]").addEventListener("change", (e) => {
+    const v = Number(e.target.value);
+    setConfig({ companion_bg_opacity: v });
+    document.documentElement.style.setProperty("--comp-bg-alpha", String(v));
   });
 
   // Live theme editing: apply immediately + persist. Editing a swatch marks it Custom.

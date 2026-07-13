@@ -32,6 +32,7 @@ export async function getConfig() {
       clock_mode: "digital",
       ui_scale: "normal",
       experimental_ui: false,
+      companion_bg_opacity: 1,
       hide_controls: false,
       auto_update: true,
       hide_help: true,

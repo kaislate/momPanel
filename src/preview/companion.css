@@ -5,32 +5,48 @@
    The background sky shifts gently with the time of day so the panel feels alive
    without ever being busy. Loaded only when experimental_ui is on. */
 
+/* The window itself is transparent in companion mode; the time-of-day sky lives on
+   a fixed backdrop layer whose opacity the user can turn down (a translucent panel
+   floating over the desktop) without fading the content. Both html and body must go
+   transparent — either would otherwise paint an opaque backdrop. */
+html.companion,
 body.companion {
-  /* Sky gradients are set per time-of-day below; keep everything dark-friendly so
-     the light ink always reads. */
-  transition: background 3s ease;
+  background: transparent;
 }
-body.companion[data-sky="dawn"] {
-  background: linear-gradient(160deg, #171430 0%, #241a33 55%, #3a2233 100%);
-}
-body.companion[data-sky="day"] {
+body.companion::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  opacity: var(--comp-bg-alpha, 1);
+  transition: background 3s ease, opacity 0.4s ease;
   background: linear-gradient(160deg, #0e1626 0%, #131e33 55%, #182640 100%);
 }
-body.companion[data-sky="dusk"] {
+body.companion[data-sky="dawn"]::before {
+  background: linear-gradient(160deg, #171430 0%, #241a33 55%, #3a2233 100%);
+}
+body.companion[data-sky="day"]::before {
+  background: linear-gradient(160deg, #0e1626 0%, #131e33 55%, #182640 100%);
+}
+body.companion[data-sky="dusk"]::before {
   background: linear-gradient(160deg, #1a1428 0%, #2a1a2e 55%, #402431 100%);
 }
-body.companion[data-sky="night"] {
+body.companion[data-sky="night"]::before {
   background: linear-gradient(160deg, #090b12 0%, #0d1019 55%, #101527 100%);
 }
 
 /* Root layout: hero column (left), health card (right), attention row (bottom,
    only present when something needs a look). */
+/* Sized for the companion window (880x560 at scale "normal") — tighter than the
+   classic grid since there's simply less on screen. */
 .comp {
   display: grid;
   grid-template-columns: 1.7fr 1fr;
   grid-template-rows: 1fr auto;
-  gap: 1.2rem;
-  padding: 2rem 2.2rem 1.6rem;
+  /* row-gap 0: the attention row supplies its own margin when visible, so an empty
+     row leaves no dead band at the bottom. */
+  gap: 0 1rem;
+  padding: 1.6rem 1.8rem 1.3rem;
   height: 100vh;
   box-sizing: border-box;
 }
@@ -50,7 +66,7 @@ body.companion[data-sky="night"] {
   letter-spacing: 0.01em;
 }
 .comp-time {
-  font-size: 6.8rem;
+  font-size: 5.8rem;
   font-weight: 250;
   line-height: 1.05;
   letter-spacing: -0.02em;
@@ -72,7 +88,7 @@ body.companion[data-sky="night"] {
 }
 
 .comp-weather {
-  margin-top: 2rem;
+  margin-top: 1.4rem;
 }
 .comp-wx-now {
   display: flex;
@@ -153,11 +169,11 @@ body.companion[data-sky="night"] {
 .comp-health {
   background: rgba(255, 255, 255, 0.045);
   border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 24px;
-  padding: 1.5rem 1.6rem;
+  border-radius: 22px;
+  padding: 1.2rem 1.3rem;
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 0.75rem;
   align-self: center;
   min-width: 0;
 }
@@ -206,14 +222,24 @@ body.companion[data-sky="night"] {
 }
 
 /* ---- Attention cards: only exist when something needs a look ---- */
+/* Attention row: grows and shrinks smoothly so the hero/health content above
+   glides to make room instead of snapping when a card appears or resolves. */
 .comp-attention {
   grid-column: 1 / -1;
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
+  /* keep clear of the controls gear parked in the bottom-right corner */
+  padding-right: 2.8rem;
+  overflow: hidden;
+  max-height: 0;
+  margin-top: 0;
+  transition: max-height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin-top 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.comp-attention:empty {
-  display: none;
+.comp-attention.has-cards {
+  max-height: 12rem;
+  margin-top: 1rem;
 }
 .comp-card {
   flex: 1 1 20rem;
@@ -246,10 +272,13 @@ body.companion[data-sky="night"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body.companion {
+  body.companion::before {
     transition: none;
   }
   .comp-card {
     animation: none;
+  }
+  .comp-attention {
+    transition: none;
   }
 }

@@ -1,5 +1,7 @@
-//! Volume collector. On Linux reads the default audio sink via PipeWire's `wpctl`.
-//! On any other platform, or if `wpctl` is missing/fails, returns `Unavailable`.
+//! Volume collector. On Linux reads the default audio sink via PipeWire's `wpctl`;
+//! on Windows via Core Audio; on macOS via `osascript` ("get volume settings").
+//! On any other platform, or if the underlying query is missing/fails, returns
+//! `Unavailable`.
 
 use serde::Serialize;
 
@@ -49,7 +51,30 @@ pub fn read() -> VolumeData {
         }
     }
 
-    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Command;
+        // `get volume settings` is a stable AppleScript one-liner that needs no extra
+        // permissions; its output is fixed English tokens, so no locale pinning needed.
+        match Command::new("osascript")
+            .args(["-e", "get volume settings"])
+            .output()
+        {
+            Ok(out) if out.status.success() => {
+                let text = String::from_utf8_lossy(&out.stdout);
+                match parse_osascript(&text) {
+                    Some((level_percent, muted)) => VolumeData::Ok {
+                        level_percent,
+                        muted,
+                    },
+                    None => VolumeData::Unavailable,
+                }
+            }
+            _ => VolumeData::Unavailable,
+        }
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
     {
         VolumeData::Unavailable
     }
@@ -94,6 +119,25 @@ pub fn parse_wpctl(s: &str) -> Option<(u8, bool)> {
     Some((level, muted))
 }
 
+/// Parse `osascript -e "get volume settings"` output, e.g.
+/// "output volume:45, input volume:75, alert volume:100, output muted:false".
+/// The output volume is already a 0-100 integer. Returns (level_percent, muted),
+/// or None if the "output volume" field is missing. Kept unconditional so it is
+/// unit-tested on every platform.
+pub fn parse_osascript(s: &str) -> Option<(u8, bool)> {
+    let mut level: Option<u8> = None;
+    let mut muted = false;
+    for part in s.split(',') {
+        let part = part.trim();
+        if let Some(v) = part.strip_prefix("output volume:") {
+            level = v.trim().parse::<u16>().ok().map(|n| n.min(100) as u8);
+        } else if let Some(v) = part.strip_prefix("output muted:") {
+            muted = v.trim().eq_ignore_ascii_case("true");
+        }
+    }
+    level.map(|l| (l, muted))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -119,5 +163,36 @@ mod tests {
     fn handles_garbage() {
         assert_eq!(parse_wpctl("not real output"), None);
         assert_eq!(parse_wpctl(""), None);
+    }
+
+    #[test]
+    fn osascript_parses_unmuted() {
+        let s = "output volume:45, input volume:75, alert volume:100, output muted:false";
+        assert_eq!(parse_osascript(s), Some((45, false)));
+    }
+
+    #[test]
+    fn osascript_parses_muted() {
+        let s = "output volume:0, input volume:75, alert volume:100, output muted:true\n";
+        assert_eq!(parse_osascript(s), Some((0, true)));
+    }
+
+    #[test]
+    fn osascript_clamps_and_handles_full() {
+        assert_eq!(
+            parse_osascript("output volume:100, input volume:50, alert volume:100, output muted:false"),
+            Some((100, false))
+        );
+        // Defensive: a value above 100 is clamped rather than wrapping the u8.
+        assert_eq!(
+            parse_osascript("output volume:150, output muted:false"),
+            Some((100, false))
+        );
+    }
+
+    #[test]
+    fn osascript_handles_garbage() {
+        assert_eq!(parse_osascript("not real output"), None);
+        assert_eq!(parse_osascript(""), None);
     }
 }

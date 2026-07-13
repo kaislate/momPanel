@@ -1,6 +1,21 @@
 // Plain-English, kind "what's new" notes shown inside the app after an update, keyed
 // by version. (The GitHub release notes in CHANGELOG.md can be more technical.)
 export const CHANGELOG = {
+  "0.6.0": {
+    changes: [
+      "🍎 momPanel now runs on Macs too — alongside Linux and Windows. The settings buttons open the right screens on every system.",
+      "🧹 A tidier corner: the little control buttons now tuck away behind one faint ⚙ dot. Tap it when you need them; they stay out of your way when you don't.",
+      "🗂️ The About window is all on one page now — everything visible at a glance, nothing hiding below the bottom.",
+      "🌙 Companion mode fits in a smaller, cozier window — and greets you properly in the wee hours.",
+      "🫧 New in Companion mode: make the background see-through! Pick how clear in the About window, from solid to barely-there.",
+      "🌊 Notes now glide in and out at the bottom of Companion mode instead of popping — everything above slides gently to make room.",
+    ],
+  },
+  "0.5.1": {
+    changes: [
+      "🖨️ The Printers tile now tells the truth: it says “Offline” when the printer is switched off, instead of always claiming “Ready.”",
+    ],
+  },
   "0.5.0": {
     changes: [
       "🧪 New to try: Companion mode! A calmer momPanel — a big clock, the weather, and one “All is well” card that only speaks up when something needs attention. Turn it on in the About window, under Preview.",

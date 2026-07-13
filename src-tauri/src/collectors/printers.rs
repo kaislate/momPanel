@@ -1,5 +1,6 @@
-//! Printers collector. Uses `lpstat -p -d` (CUPS) on Linux and PowerShell/CIM
-//! (`Win32_Printer`) on Windows. Any failure -> Unavailable.
+//! Printers collector. Uses `lpstat -p -d` (CUPS) on Linux and macOS — both ship the
+//! same CUPS tooling and output format — and PowerShell/CIM (`Win32_Printer`) on
+//! Windows. Any failure -> Unavailable.
 //!
 //! Serialized shape:
 //!   { "state": "ok", "printers": [{ "name": ..., "status": ... }],
@@ -24,9 +25,10 @@ pub enum PrintersData {
     Unavailable,
 }
 
-/// Dispatch: Linux uses `lpstat` (CUPS), Windows uses PowerShell/CIM, else Unavailable.
+/// Dispatch: Linux/macOS use `lpstat` (CUPS), Windows uses PowerShell/CIM,
+/// else Unavailable.
 pub fn read() -> PrintersData {
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     {
         use std::process::Command;
         // Pin the locale: lpstat's status text is gettext-translated, and parse_lpstat
@@ -84,7 +86,7 @@ pub fn read() -> PrintersData {
         }
     }
 
-    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
     {
         PrintersData::Unavailable
     }
@@ -93,7 +95,7 @@ pub fn read() -> PrintersData {
 /// Map of printer name -> CUPS device URI, parsed from `lpstat -v`
 /// (lines like "device for EPSON_ET3760: ipp://localhost:60000/ipp/print").
 /// Returns an empty map on any failure.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn device_uris() -> std::collections::HashMap<String, String> {
     use std::process::Command;
     let mut map = std::collections::HashMap::new();
@@ -117,7 +119,7 @@ fn device_uris() -> std::collections::HashMap<String, String> {
 /// Extract (host, port) from a *network* device URI (ipp/ipps/http/https/socket).
 /// Returns None for local backends (usb://, hp:/, file://, dnssd://, ...) that
 /// can't be TCP-probed. Pure/host-agnostic so it is unit-testable everywhere.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "linux", target_os = "macos")), allow(dead_code))]
 fn network_endpoint(uri: &str) -> Option<(String, u16)> {
     let (scheme, rest) = uri.split_once("://")?;
     let default_port: u16 = match scheme {
@@ -140,7 +142,7 @@ fn network_endpoint(uri: &str) -> Option<(String, u16)> {
 
 /// True if a TCP connection to host:port succeeds quickly. ipp-usb only listens on
 /// its port while the printer is powered on, so this doubles as a presence check.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn endpoint_reachable(host: &str, port: u16) -> bool {
     use std::net::{TcpStream, ToSocketAddrs};
     use std::time::Duration;

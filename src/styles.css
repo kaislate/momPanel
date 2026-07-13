@@ -504,33 +504,76 @@ body.help-hidden .tile-help {
   border-radius: 10px;
 }
 
-/* "make everything bigger" A-/A+ pill, parked bottom-right, out of the way */
+/* Controls corner: a single faint gear at rest that expands into the i/?/eye/A±
+   tray on demand — the controls never crowd the tiles or draw the eye. */
 .scale-control {
   position: fixed;
-  right: 14px;
-  bottom: 12px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px;
+  z-index: 50;
+  opacity: 0.35;
+  transition: opacity 0.25s ease, background 0.25s ease;
+}
+.scale-control:hover,
+.scale-control:focus-within,
+.scale-control.is-open {
+  opacity: 1;
+}
+.scale-control.is-open {
+  background: rgba(20, 25, 38, 0.88);
+}
+.scale-tray {
   display: flex;
   gap: 6px;
-  background: rgba(20, 25, 38, 0.8);
-  border-radius: 999px;
-  padding: 5px;
-  z-index: 50;
+}
+.scale-tray[hidden] {
+  display: none;
+}
+@keyframes tray-in {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+}
+.scale-control.is-open .scale-tray {
+  animation: tray-in 0.18s ease;
 }
 .scale-btn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: none;
   border-radius: 50%;
   background: #2c3450;
   color: var(--ink);
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: background 0.2s ease, transform 0.2s ease;
 }
 .scale-btn:hover {
   background: var(--accent);
   transform: scale(1.08);
+}
+.scale-btn--launcher {
+  width: 32px;
+  height: 32px;
+  background: rgba(44, 52, 80, 0.75);
+  color: var(--ink-dim);
+}
+.scale-btn--launcher:hover {
+  color: #fff;
+}
+.scale-control.is-open .scale-btn--launcher {
+  background: var(--accent);
+  color: #fff;
 }
 .scale-btn--info {
   font-family: Georgia, "Times New Roman", serif;
@@ -538,21 +581,73 @@ body.help-hidden .tile-help {
   font-weight: 700;
 }
 
-/* About / info overlay panel */
-.info-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-/* Wider than the other modals and scrollable — the About panel holds all the settings
-   (alert + theme), which overflow a short fixed card. Overrides .modal-card's 320px. */
+/* About panel: one wide pane — identity header with the action buttons, then
+   three settings columns (General / Memory alerts / Appearance) so everything is
+   visible at once with no scrolling to discover options. */
 .modal-card.info-card {
-  width: 480px;
-  max-width: 92vw;
-  max-height: 85vh;
+  position: relative;
+  width: min(900px, 94vw);
+  max-height: 92vh;
   overflow-y: auto;
   overflow-x: hidden;
+  text-align: left;
+  padding: 20px 26px 22px;
+}
+.info-x {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: #2c3450;
+  color: var(--ink-dim);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.info-x:hover {
+  background: var(--bad);
+  color: #fff;
+}
+.info-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 42px;
+}
+.info-id {
+  min-width: 0;
+}
+.info-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+.info-btn--slim {
+  margin-top: 0;
+  min-height: 0;
+  padding: 9px 13px;
+  font-size: 0.9rem;
+  border-radius: 11px;
+}
+.info-cols {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  gap: 0 28px;
+  margin-top: 10px;
+}
+.info-col {
+  min-width: 0;
+}
+.info-reset {
+  margin-top: 12px;
+  width: 100%;
 }
 /* Checkboxes must stay small: the generic `.modal-card input` rule (for the first-run ZIP
    field) otherwise stretches them to 100% width and shoves their labels off-panel. */
@@ -566,27 +661,20 @@ body.help-hidden .tile-help {
 }
 .info-logo {
   line-height: 0;
+  flex: none;
 }
 .info-name {
-  font-size: 1.7rem;
+  font-size: 1.35rem;
   font-weight: 800;
 }
 .info-version {
   color: var(--ink-dim);
-  font-size: 0.95rem;
-}
-.info-os {
-  color: var(--ink-dim);
-  font-size: 0.85rem;
+  font-size: 0.88rem;
 }
 .info-status {
-  min-height: 1.2em;
+  min-height: 1.1em;
   color: var(--accent);
-  font-size: 0.9rem;
-}
-.info-btn {
-  width: 100%;
-  margin-top: 2px;
+  font-size: 0.85rem;
 }
 .info-auto {
   display: flex;
@@ -656,11 +744,13 @@ body.help-hidden .tile-help {
 }
 .info-section {
   width: 100%;
-  margin-top: 14px;
-  padding-top: 10px;
-  border-top: 1px solid #2c3450;
-  font-size: 0.9rem;
+  margin: 0 0 4px;
+  padding: 8px 0 6px;
+  border-bottom: 1px solid #2c3450;
+  font-size: 0.85rem;
   font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   color: var(--ink-dim);
   text-align: left;
 }
@@ -829,6 +919,12 @@ body.help-hidden .tile-help {
   }
   .tile-help--poof,
   .tile-help--appear {
+    animation: none;
+  }
+  .scale-control {
+    transition: none;
+  }
+  .scale-control.is-open .scale-tray {
     animation: none;
   }
 }

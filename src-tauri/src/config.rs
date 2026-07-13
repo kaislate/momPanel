@@ -175,6 +175,13 @@ pub struct AppConfig {
     /// Opt-in flag for unfinished UI the frontend can gate on. Off by default.
     #[serde(default)]
     pub experimental_ui: bool,
+    /// Companion-mode background opacity, 0.0 (invisible) to 1.0 (solid).
+    #[serde(default = "default_companion_bg_opacity")]
+    pub companion_bg_opacity: f64,
+}
+
+fn default_companion_bg_opacity() -> f64 {
+    1.0
 }
 
 impl Default for AppConfig {
@@ -205,6 +212,7 @@ impl Default for AppConfig {
             geo_lon: None,
             geo_place: None,
             experimental_ui: false,
+            companion_bg_opacity: 1.0,
         }
     }
 }

@@ -7,7 +7,7 @@ import {
 } from "./tiles.js";
 import { registerAll } from "./tiles/index.js";
 import { listen } from "./bridge.js";
-import { initChrome, mountControls } from "./scale.js";
+import { initChrome, mountControls, setPanelBase } from "./scale.js";
 import { showHelp } from "./help.js";
 import { appVersion, getConfig, setConfig } from "./api.js";
 import { showWhatsNew } from "./whatsnew.js";
@@ -28,6 +28,10 @@ async function boot() {
   const cfg = await getConfig();
   // Apply saved colors before anything renders (prevents a flash of the default theme).
   applyTheme(cfg.theme);
+
+  // Companion mode shows less at once than the ten-tile grid, so it runs in a
+  // smaller window. Must be set before initChrome() performs the first resize.
+  if (cfg.experimental_ui) setPanelBase(880, 560);
 
   // Apply saved size + hide-controls state before tiles render (avoids a flash).
   const chrome = await initChrome();

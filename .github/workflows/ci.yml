@@ -1,8 +1,10 @@
 name: CI
 
 # Compile and test the Rust backend on every PR and on pushes to main, so a broken
-# build is caught before it reaches a release tag. Linux-only (the primary deploy
-# target); the release workflow covers the Windows bundle.
+# build is caught before it reaches a release tag. The full test suite runs on Linux
+# (the primary deploy target); a macOS `cargo check` job compile-checks the mac-only
+# cfg branches (they can't be built on the Linux runner). The release workflow covers
+# the Windows and macOS bundles.
 on:
   pull_request:
   push:
@@ -27,6 +29,19 @@ jobs:
 
       - name: cargo test
         run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: cargo check
+        run: cargo check --manifest-path src-tauri/Cargo.toml
+
+  # Compile-check the macOS cfg branches (collectors, shortcuts, open_github). No tests
+  # and no extra system deps here — macOS ships the frameworks Tauri needs, and the
+  # shared parsing logic is already unit-tested in the Linux `test` job above.
+  check-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: cargo check
         run: cargo check --manifest-path src-tauri/Cargo.toml

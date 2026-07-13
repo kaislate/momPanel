@@ -1,8 +1,11 @@
 name: Release
 
-# Build, sign, and publish momPanel for Linux (AppImage) and Windows (NSIS) when a
-# version tag is pushed. The Tauri action also generates and uploads `latest.json`,
-# which the in-app updater reads from the GitHub Release.
+# Build, sign, and publish momPanel for Linux (AppImage), Windows (NSIS), and macOS
+# (universal .dmg/.app) when a version tag is pushed. The Tauri action also generates
+# and uploads `latest.json`, which the in-app updater reads from the GitHub Release.
+# NOTE: the macOS bundle is signed with the minisign updater key only — it is NOT
+# Apple-notarized, so Gatekeeper blocks a double-click on first launch. Users must
+# right-click the app -> Open the first time (this is called out in the release notes).
 on:
   push:
     tags:
@@ -18,6 +21,9 @@ jobs:
         include:
           - platform: ubuntu-22.04 # AppImage (self-updatable Linux bundle)
           - platform: windows-latest # NSIS installer (dev/test target)
+          # One universal .dmg/.app covering Intel + Apple Silicon in a single artifact.
+          - platform: macos-latest
+            args: "--target universal-apple-darwin"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -36,6 +42,12 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      # The universal build compiles for both macOS arches, so both Rust std targets
+      # must be installed before tauri-action runs.
+      - name: Add macOS universal Rust targets
+        if: matrix.platform == 'macos-latest'
+        run: rustup target add x86_64-apple-darwin aarch64-apple-darwin
+
       - name: Install frontend dependencies
         run: npm ci || npm install
 
@@ -51,7 +63,7 @@ jobs:
             echo "$notes"
             echo ""
             echo "---"
-            echo "Installs and updates automatically from this release. **Linux/Zorin:** download the AppImage (the self-updating bundle). **Windows:** run the \`_x64-setup.exe\`."
+            echo "Installs and updates automatically from this release. **Linux/Zorin:** download the AppImage (the self-updating bundle). **Windows:** run the \`_x64-setup.exe\`. **macOS:** open the \`.dmg\` and drag momPanel to Applications; on first launch right-click the app and choose **Open** (it isn't Apple-notarized yet)."
             echo "__EOF__"
           } >> "$GITHUB_OUTPUT"
 
@@ -67,3 +79,5 @@ jobs:
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           prerelease: false
+          # Empty on Linux/Windows; "--target universal-apple-darwin" on macOS.
+          args: ${{ matrix.args }}

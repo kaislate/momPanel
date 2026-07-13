@@ -1,13 +1,14 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "momPanel",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "identifier": "com.kaislate.mompanel",
   "build": {
     "frontendDist": "../src"
   },
   "app": {
     "withGlobalTauri": true,
+    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "momPanel",
@@ -17,7 +18,8 @@
         "decorations": false,
         "center": true,
         "visible": false,
-        "dragDropEnabled": false
+        "dragDropEnabled": false,
+        "transparent": true
       }
     ],
     "security": {

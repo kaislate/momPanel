@@ -253,6 +253,10 @@ fn apply_patch(current: &mut AppConfig, cfg: &serde_json::Value) -> Result<(), S
     if let Some(b) = cfg.get("experimental_ui").and_then(|v| v.as_bool()) {
         current.experimental_ui = b;
     }
+    if let Some(o) = cfg.get("companion_bg_opacity").and_then(|v| v.as_f64()) {
+        // Clamp with a floor: a fully transparent panel would look like a crash.
+        current.companion_bg_opacity = o.clamp(0.2, 1.0);
+    }
     Ok(())
 }
 
@@ -282,7 +286,9 @@ fn open_github() -> Result<(), String> {
     let r = std::process::Command::new("xdg-open").arg(url).spawn();
     #[cfg(target_os = "windows")]
     let r = std::process::Command::new("cmd").args(["/C", "start", "", url]).spawn();
-    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    #[cfg(target_os = "macos")]
+    let r = std::process::Command::new("open").arg(url).spawn();
+    #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
     let r: std::io::Result<std::process::Child> =
         Err(std::io::Error::new(std::io::ErrorKind::Other, "unsupported"));
     r.map(|_| ()).map_err(|e| e.to_string())

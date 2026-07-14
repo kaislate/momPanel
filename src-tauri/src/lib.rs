@@ -1,3 +1,4 @@
+mod background;
 mod collectors;
 mod config;
 mod memwatch;
@@ -119,6 +120,27 @@ async fn read_weather(zip: String) -> serde_json::Value {
 
 fn unavail() -> serde_json::Value {
     serde_json::json!({ "state": "unavailable" })
+}
+
+/// Whether this platform supports a real transparent window. False on Linux, where
+/// WebKitGTK's transparency ghosts frames and breaks input (see the WEBKIT note in
+/// run()); the frontend uses this to pick real transparency (Win/mac) vs. a simulated
+/// wallpaper backdrop (Linux).
+#[tauri::command]
+fn supports_transparency() -> bool {
+    cfg!(not(target_os = "linux"))
+}
+
+/// The user's desktop wallpaper as a base64 `data:` URL, or null if it can't be
+/// determined/read. The Linux backdrop draws this behind an opaque webview to fake the
+/// see-through look; on Win/mac the frontend uses the real transparent window instead.
+/// Offloaded to a blocking thread: it shells out and reads a (possibly multi-MB) file.
+#[tauri::command]
+async fn desktop_background() -> Option<String> {
+    tauri::async_runtime::spawn_blocking(background::resolve)
+        .await
+        .ok()
+        .flatten()
 }
 
 // Holds the panel's latest position between throttled writes so a drag (which emits a
@@ -254,8 +276,10 @@ fn apply_patch(current: &mut AppConfig, cfg: &serde_json::Value) -> Result<(), S
         current.experimental_ui = b;
     }
     if let Some(o) = cfg.get("companion_bg_opacity").and_then(|v| v.as_f64()) {
-        // Clamp with a floor: a fully transparent panel would look like a crash.
-        current.companion_bg_opacity = o.clamp(0.2, 1.0);
+        // Allow a fully-invisible sky (0.0): the frontend now draws a real backdrop
+        // behind it — the actual desktop through a transparent window on Win/mac, or a
+        // simulated wallpaper (desktop_background()) inside the opaque webview on Linux.
+        current.companion_bg_opacity = o.clamp(0.0, 1.0);
     }
     Ok(())
 }
@@ -354,6 +378,13 @@ fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
 pub fn run() {
     // Work around a WebKitGTK DMABUF rendering bug that causes glitchy rendering and
     // flaky mouse input on many newer Wayland/Mesa setups (common with AppImages).
+    //
+    // Related Linux fix (v0.6.1): the main window is NOT transparent on Linux —
+    // tauri.linux.conf.json drops `transparent: true` (kept on Win/mac). WebKitGTK's
+    // transparent compositing leaves ghost/stale frames in transparent regions and
+    // eats pointer input on those regions (tauri-apps/tauri#14924, #13157), which broke
+    // buttons on Zorin. Linux instead simulates the see-through look with a wallpaper
+    // backdrop drawn inside the (opaque) webview via desktop_background().
     #[cfg(target_os = "linux")]
     if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
@@ -474,6 +505,8 @@ pub fn run() {
             set_autostart,
             dismiss_mem_warn,
             open_main_window,
+            supports_transparency,
+            desktop_background,
             shortcuts::open_settings
         ])
         .run(tauri::generate_context!())

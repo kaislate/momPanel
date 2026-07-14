@@ -4,8 +4,12 @@
 //!
 //! Serialized shape:
 //!   { "state": "ok", "printers": [{ "name": ..., "status": ... }],
-//!     "default_name": "..." | null }
+//!     "default_name": "..." | null,
+//!     "inks": [{ "name": ..., "color": "#RRGGBB", "percent": 49, "low": false }] }
 //! or { "state": "unavailable" }.
+//!
+//! `inks` (Linux/macOS, via `ipptool`) is omitted entirely when unavailable; the
+//! frontend treats its absence as "no ink data".
 
 use serde::Serialize;
 
@@ -15,12 +19,24 @@ pub struct PrinterInfo {
     pub status: String,
 }
 
+/// One ink/toner marker: display name, swatch color, level %, and whether it's low.
+#[derive(Serialize, PartialEq, Debug)]
+pub struct Ink {
+    pub name: String,
+    pub color: String,
+    pub percent: i32,
+    pub low: bool,
+}
+
 #[derive(Serialize)]
 #[serde(tag = "state", rename_all = "lowercase")]
 pub enum PrintersData {
     Ok {
         printers: Vec<PrinterInfo>,
         default_name: Option<String>,
+        /// Ink levels for the default/first printer; omitted when there's no data.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        inks: Option<Vec<Ink>>,
     },
     Unavailable,
 }
@@ -61,6 +77,16 @@ pub fn read() -> PrintersData {
                         p.status = "offline".to_string();
                     }
                 }
+            }
+        }
+        // Ink levels: one extra `ipptool` call per poll (30s), and only when there are
+        // printers — we query the single default queue (or the first if none is default)
+        // rather than every printer. ipptool absence / any failure -> inks stays None.
+        if let PrintersData::Ok { printers, default_name, inks } = &mut data {
+            if !printers.is_empty() {
+                let queue =
+                    default_name.clone().unwrap_or_else(|| printers[0].name.clone());
+                *inks = query_inks(&queue);
             }
         }
         data
@@ -193,6 +219,7 @@ fn parse_win_printers(text: &str) -> PrintersData {
     PrintersData::Ok {
         printers,
         default_name,
+        inks: None, // Windows has no ipptool marker query
     }
 }
 
@@ -243,7 +270,120 @@ pub fn parse_lpstat(text: &str) -> PrintersData {
     PrintersData::Ok {
         printers,
         default_name,
+        inks: None, // populated by read() on Linux/macOS via ipptool
     }
+}
+
+/// Query one CUPS queue for ink/toner marker attributes via `ipptool`, returning parsed
+/// inks or None. The queue name comes straight from lpstat (CUPS queue names have no
+/// spaces, so no percent-encoding is needed). Missing `ipptool`, a spawn error, or an
+/// unparseable response all resolve to None so the frontend shows "no data".
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+fn query_inks(queue: &str) -> Option<Vec<Ink>> {
+    use std::process::Command;
+    // LC_ALL=C pins ipptool's output; get-printer-attributes.test is the stock test file
+    // that ships with CUPS and is resolved by name. -t = plain text, -v = show values.
+    let out = Command::new("ipptool")
+        .env("LC_ALL", "C")
+        .env("LANG", "C")
+        .arg("-tv")
+        .arg(format!("ipp://localhost/printers/{}", queue))
+        .arg("get-printer-attributes.test")
+        .output()
+        .ok()?; // ipptool not installed / not on PATH -> no ink data
+    // ipptool may exit non-zero (test "fails") while still printing the attributes we
+    // want on stdout, so parse the output regardless of the exit status.
+    parse_marker_attrs(&String::from_utf8_lossy(&out.stdout))
+}
+
+/// Parse CUPS `marker-*` attributes (as printed by `ipptool -tv`) into an ink list.
+/// Returns None if there are no usable ink levels. Pure/host-agnostic -> unit-testable
+/// on every platform. Only ink/toner markers are kept (waste tanks etc. are dropped),
+/// and entries with an unknown level (outside 0..=100) are skipped.
+#[cfg_attr(not(any(target_os = "linux", target_os = "macos")), allow(dead_code))]
+pub fn parse_marker_attrs(text: &str) -> Option<Vec<Ink>> {
+    let mut colors: Option<Vec<String>> = None;
+    let mut levels: Option<Vec<i32>> = None;
+    let mut low_levels: Option<Vec<i32>> = None;
+    let mut names: Option<Vec<String>> = None;
+    let mut types: Option<Vec<String>> = None;
+
+    for raw in text.lines() {
+        // Lines look like: `marker-levels (1setOf integer) = 49,77,80,80` (indented).
+        let (key, value) = match split_attr(raw.trim()) {
+            Some(kv) => kv,
+            None => continue,
+        };
+        match key {
+            "marker-colors" => colors = Some(split_csv_strings(value)),
+            "marker-levels" => levels = Some(split_csv_ints(value)),
+            "marker-low-levels" => low_levels = Some(split_csv_ints(value)),
+            "marker-names" => names = Some(split_csv_strings(value)),
+            "marker-types" => types = Some(split_csv_strings(value)),
+            _ => {}
+        }
+    }
+
+    // marker-levels is the essential column; without it there's nothing to show.
+    let levels = levels?;
+    if levels.is_empty() {
+        return None;
+    }
+    let names = names.unwrap_or_default();
+    let colors = colors.unwrap_or_default();
+    let low_levels = low_levels.unwrap_or_default();
+    let types = types.unwrap_or_default();
+
+    let mut inks = Vec::new();
+    for (i, &percent) in levels.iter().enumerate() {
+        // Keep only real ink/toner markers; skip waste tanks and other marker types.
+        // Missing marker-types -> assume "ink" (some drivers omit it).
+        let mtype = types.get(i).map(String::as_str).unwrap_or("ink");
+        if !matches!(mtype, "ink" | "ink-cartridge" | "toner") {
+            continue;
+        }
+        // -1 (or anything outside 0..=100) means the printer reported no real level.
+        if !(0..=100).contains(&percent) {
+            continue;
+        }
+        // Default low threshold is 15 when the printer omits marker-low-levels (or
+        // reports a nonsense negative value for this slot).
+        let low_level = match low_levels.get(i).copied() {
+            Some(v) if v >= 0 => v,
+            _ => 15,
+        };
+        let name =
+            names.get(i).cloned().unwrap_or_else(|| format!("Ink {}", i + 1));
+        let color = colors.get(i).cloned().unwrap_or_default();
+        inks.push(Ink { name, color, percent, low: percent <= low_level });
+    }
+
+    if inks.is_empty() {
+        None
+    } else {
+        Some(inks)
+    }
+}
+
+/// Split an ipptool attribute line into `(key, value)` at the ` = ` separator. The key
+/// is the first whitespace token (e.g. `marker-levels` from `marker-levels (1setOf ...)`).
+#[cfg_attr(not(any(target_os = "linux", target_os = "macos")), allow(dead_code))]
+fn split_attr(line: &str) -> Option<(&str, &str)> {
+    let eq = line.find(" = ")?;
+    let key = line[..eq].split_whitespace().next()?;
+    Some((key, line[eq + 3..].trim()))
+}
+
+/// Split a comma-separated value list into trimmed strings.
+#[cfg_attr(not(any(target_os = "linux", target_os = "macos")), allow(dead_code))]
+fn split_csv_strings(v: &str) -> Vec<String> {
+    v.split(',').map(|s| s.trim().to_string()).collect()
+}
+
+/// Split a comma-separated integer list; unparseable entries become -1 ("unknown").
+#[cfg_attr(not(any(target_os = "linux", target_os = "macos")), allow(dead_code))]
+fn split_csv_ints(v: &str) -> Vec<i32> {
+    v.split(',').map(|s| s.trim().parse::<i32>().unwrap_or(-1)).collect()
 }
 
 #[cfg(test)]
@@ -255,6 +395,7 @@ mod tests {
             PrintersData::Ok {
                 printers,
                 default_name,
+                ..
             } => (printers, default_name),
             PrintersData::Unavailable => panic!("expected Ok"),
         }
@@ -332,5 +473,94 @@ system default destination: Office_LaserJet\n";
         assert_eq!(printers[1].name, "Office LaserJet");
         assert_eq!(printers[1].status, "ready");
         assert_eq!(default_name.as_deref(), Some("EPSON ET-3760 Series"));
+    }
+
+    // Exact ipptool -tv output from the target Epson (verified real fixture).
+    const INK_FIXTURE: &str = "\
+        Get printer attributes using get-printer-attributes         [PASS]\n\
+            marker-colors (1setOf nameWithoutLanguage) = #000000,#00FFFF,#FF00FF,#FFFF00\n\
+            marker-levels (1setOf integer) = 49,77,80,80\n\
+            marker-low-levels (1setOf integer) = 15,15,15,15\n\
+            marker-names (1setOf nameWithoutLanguage) = Black ink,Cyan ink,Magenta ink,Yellow ink\n\
+            marker-types (1setOf keyword) = ink,ink,ink,ink\n";
+
+    #[test]
+    fn parses_marker_attrs_from_real_fixture() {
+        let inks = super::parse_marker_attrs(INK_FIXTURE).expect("some inks");
+        assert_eq!(inks.len(), 4);
+        assert_eq!(
+            inks[0],
+            Ink { name: "Black ink".into(), color: "#000000".into(), percent: 49, low: false }
+        );
+        assert_eq!(
+            inks[3],
+            Ink { name: "Yellow ink".into(), color: "#FFFF00".into(), percent: 80, low: false }
+        );
+        // 49 > low-level 15 -> not low; construct a fixture where one dips to the floor.
+        assert!(inks.iter().all(|i| !i.low));
+    }
+
+    #[test]
+    fn marker_level_at_or_below_low_threshold_is_low() {
+        let fixture = "\
+            marker-colors (1setOf nameWithoutLanguage) = #000000,#00FFFF\n\
+            marker-levels (1setOf integer) = 15,8\n\
+            marker-low-levels (1setOf integer) = 15,15\n\
+            marker-names (1setOf nameWithoutLanguage) = Black ink,Cyan ink\n\
+            marker-types (1setOf keyword) = ink,ink\n";
+        let inks = super::parse_marker_attrs(fixture).expect("some inks");
+        assert_eq!(inks.len(), 2);
+        assert!(inks[0].low, "15 <= 15 should be low");
+        assert!(inks[1].low, "8 <= 15 should be low");
+    }
+
+    #[test]
+    fn unknown_levels_are_skipped() {
+        // -1 and 200 are unknown/out-of-range: those entries are dropped, keeping only
+        // the two real levels.
+        let fixture = "\
+            marker-colors (1setOf nameWithoutLanguage) = #000000,#00FFFF,#FF00FF,#FFFF00\n\
+            marker-levels (1setOf integer) = -1,77,200,80\n\
+            marker-low-levels (1setOf integer) = 15,15,15,15\n\
+            marker-names (1setOf nameWithoutLanguage) = Black ink,Cyan ink,Magenta ink,Yellow ink\n\
+            marker-types (1setOf keyword) = ink,ink,ink,ink\n";
+        let inks = super::parse_marker_attrs(fixture).expect("some inks");
+        assert_eq!(inks.len(), 2);
+        assert_eq!(inks[0].name, "Cyan ink");
+        assert_eq!(inks[0].percent, 77);
+        assert_eq!(inks[1].name, "Yellow ink");
+    }
+
+    #[test]
+    fn missing_low_levels_line_defaults_to_15() {
+        // No marker-low-levels line at all: default threshold 15 -> 10 is low, 60 isn't.
+        let fixture = "\
+            marker-colors (1setOf nameWithoutLanguage) = #000000,#00FFFF\n\
+            marker-levels (1setOf integer) = 10,60\n\
+            marker-names (1setOf nameWithoutLanguage) = Black ink,Cyan ink\n\
+            marker-types (1setOf keyword) = ink,ink\n";
+        let inks = super::parse_marker_attrs(fixture).expect("some inks");
+        assert_eq!(inks.len(), 2);
+        assert!(inks[0].low, "10 <= default 15");
+        assert!(!inks[1].low, "60 > default 15");
+    }
+
+    #[test]
+    fn non_ink_markers_are_dropped() {
+        // A waste tank (type "wasteToner") must not appear; toner is kept.
+        let fixture = "\
+            marker-colors (1setOf nameWithoutLanguage) = #000000,#888888\n\
+            marker-levels (1setOf integer) = 42,90\n\
+            marker-low-levels (1setOf integer) = 10,10\n\
+            marker-names (1setOf nameWithoutLanguage) = Black Toner,Waste Tank\n\
+            marker-types (1setOf keyword) = toner,wasteToner\n";
+        let inks = super::parse_marker_attrs(fixture).expect("some inks");
+        assert_eq!(inks.len(), 1);
+        assert_eq!(inks[0].name, "Black Toner");
+    }
+
+    #[test]
+    fn no_marker_levels_yields_none() {
+        assert!(super::parse_marker_attrs("some unrelated ipptool output\n").is_none());
     }
 }

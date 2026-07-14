@@ -108,6 +108,26 @@ export async function checkUpdates() {
   }
 }
 
+// Whether the OS window is really transparent (Windows/mac). On Linux the window
+// stays opaque (WebKitGTK transparency ghosts and breaks input), so companion mode
+// simulates see-through by drawing the desktop wallpaper as its backdrop.
+export async function supportsTransparency() {
+  try {
+    return await invoke("supports_transparency");
+  } catch {
+    return false;
+  }
+}
+
+// The desktop wallpaper as a data: URL, or null when unavailable.
+export async function desktopBackground() {
+  try {
+    return await invoke("desktop_background");
+  } catch {
+    return null;
+  }
+}
+
 export async function getAutostart() {
   try {
     return await invoke("get_autostart");

@@ -8,9 +8,33 @@
 //     panel only speaks up — a plain-language card with the right button — when
 //     something genuinely needs attention.
 // Same backend, same collectors, same cadences; only the presentation is new.
-import { getTile, readWeather, getConfig, setConfig, openSettings } from "../api.js";
+import {
+  getTile,
+  readWeather,
+  getConfig,
+  setConfig,
+  openSettings,
+  supportsTransparency,
+  desktopBackground,
+} from "../api.js";
 import { listen } from "../bridge.js";
 import { promptZip } from "../firstrun.js";
+import { register as regMemory } from "../tiles/memory.js";
+import { register as regStorage } from "../tiles/storage.js";
+import { register as regWifi } from "../tiles/wifi.js";
+import { register as regInternet } from "../tiles/internet.js";
+import { register as regPrinters } from "../tiles/printers.js";
+import { register as regVolume } from "../tiles/volume.js";
+
+// Classic tile renderers, reused as hover "peek" cards on the health rows: each
+// register() hands us its {id, render}; we keep the render functions and feed them
+// the same data the health model already fetched.
+const classicTiles = {};
+[regMemory, regStorage, regWifi, regInternet, regPrinters, regVolume].forEach((r) =>
+  r((t) => {
+    classicTiles[t.id] = t;
+  })
+);
 
 // ---------- Weather visuals (companion's own compact icon set) ----------
 
@@ -134,6 +158,19 @@ const CONCERNS = [
       if (list.length === 0) return { level: "off", word: "None" };
       // Judge by the default printer when there is one, else the first.
       const p = list.find((x) => x.name === d.default_name) || list[0];
+      // Low ink only matters when the printer is otherwise fine — paper/power first.
+      const lowInks =
+        p.status === "ready" && Array.isArray(d.inks) ? d.inks.filter((i) => i.low) : [];
+      if (lowInks.length > 0) {
+        const which = lowInks.map((i) => String(i.name).toLowerCase()).join(" and ");
+        return {
+          level: "warn",
+          word: "Ink low",
+          attention: {
+            text: `The printer is getting low on ${which}. It still prints — just worth topping up soon.`,
+          },
+        };
+      }
       if (p.status === "ready") return { level: "ok", word: "Ready" };
       if (p.status === "out_of_paper")
         return {
@@ -437,6 +474,65 @@ function renderHealth() {
   requestAnimationFrame(() => box.classList.add("has-cards"));
 }
 
+// ---------- Peek cards: hovering a health row shows the classic tile ----------
+
+function initPeek() {
+  const peek = document.createElement("div");
+  peek.className = "tile comp-peek";
+  peek.hidden = true;
+  document.body.appendChild(peek);
+
+  let hideTimer = 0;
+  let showTimer = 0;
+  const hide = () => {
+    peek.hidden = true;
+    peek.innerHTML = "";
+  };
+  const scheduleHide = () => {
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(hide, 250);
+  };
+  // Moving onto the peek itself keeps it open (its buttons are clickable).
+  peek.addEventListener("mouseenter", () => clearTimeout(hideTimer));
+  peek.addEventListener("mouseleave", scheduleHide);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hide();
+  });
+
+  CONCERNS.forEach((c) => {
+    const row = document.querySelector(`[data-concern="${c.id}"]`);
+    const tileMod = classicTiles[c.id];
+    if (!row || !tileMod) return;
+    row.addEventListener("mouseenter", () => {
+      clearTimeout(hideTimer);
+      clearTimeout(showTimer);
+      // Small delay so skimming the list doesn't strobe cards.
+      showTimer = setTimeout(() => {
+        try {
+          tileMod.render(peek, state.data[c.id]);
+        } catch {
+          return;
+        }
+        peek.hidden = false;
+        // Place beside the health card, vertically near the hovered row, on-screen.
+        const rowR = row.getBoundingClientRect();
+        const cardR = row.closest(".comp-health").getBoundingClientRect();
+        const left = Math.max(12, cardR.left - peek.offsetWidth - 14);
+        const top = Math.min(
+          Math.max(12, rowR.top - peek.offsetHeight / 2),
+          window.innerHeight - peek.offsetHeight - 12
+        );
+        peek.style.left = `${left}px`;
+        peek.style.top = `${top}px`;
+      }, 200);
+    });
+    row.addEventListener("mouseleave", () => {
+      clearTimeout(showTimer);
+      scheduleHide();
+    });
+  });
+}
+
 // ---------- Data loop: one 5s scheduler, per-concern periods, paused when hidden ----
 
 async function refreshConcern(c) {
@@ -470,11 +566,28 @@ export async function initCompanion() {
   document.documentElement.classList.add("companion");
   document.body.classList.add("companion");
 
-  // User-tunable sky opacity (About → General). Floor matches the backend clamp.
-  const alpha = Math.min(1, Math.max(0.2, Number(cfg.companion_bg_opacity ?? 1)));
+  // User-tunable sky opacity (About → General), down to fully invisible.
+  let alpha = Math.min(1, Math.max(0, Number(cfg.companion_bg_opacity ?? 1)));
+
+  // Real window transparency ghosts and breaks input on Linux/WebKitGTK, so there
+  // the window stays opaque and "clear" skies reveal a drawn copy of the desktop
+  // wallpaper instead — the desktop, never other windows.
+  if (!(await supportsTransparency())) {
+    // Load the wallpaper even at "Solid" so the About dropdown can reveal it live.
+    const wall = await desktopBackground();
+    if (wall) {
+      const desk = document.createElement("div");
+      desk.className = "comp-desktop";
+      desk.style.backgroundImage = `url(${wall})`;
+      document.body.prepend(desk);
+    } else if (alpha < 1) {
+      alpha = 1; // nothing to reveal — keep the sky solid rather than paint white
+    }
+  }
   document.documentElement.style.setProperty("--comp-bg-alpha", String(alpha));
 
   buildSkeleton(document.getElementById("grid"));
+  initPeek();
 
   tickClock();
   setInterval(tickClock, 1000);

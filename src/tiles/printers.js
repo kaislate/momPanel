@@ -24,6 +24,28 @@ function printerPhoto() {
   return `<img class="printer-photo" src="assets/printer.png" alt="" />`;
 }
 
+// CMYK-style ink bars for the default printer (EcoTank etc.); absent data = no row.
+function inkBars(inks) {
+  if (!Array.isArray(inks) || inks.length === 0) return "";
+  const bars = inks
+    .map((i) => {
+      const pct = Math.max(0, Math.min(100, Math.round(i.percent)));
+      return (
+        `<div class="ink${i.low ? " ink--low" : ""}">` +
+        `<div class="ink-track"><div class="ink-fill" style="height:${pct}%;background:${escapeHtml(
+          String(i.color)
+        )}"></div></div>` +
+        `<span class="ink-pct">${pct}%</span></div>`
+      );
+    })
+    .join("");
+  const lows = inks.filter((i) => i.low).map((i) => escapeHtml(String(i.name)));
+  const note = lows.length
+    ? `<div class="btn-note" style="color:var(--warn)">${lows.join(" and ")} running low</div>`
+    : "";
+  return `<div class="ink-row" aria-label="Ink levels">${bars}</div>${note}`;
+}
+
 function statusLine(p, isDefault) {
   const word = printerStatusWord(p.status);
   const star = isDefault ? ' <span aria-hidden="true">★</span>' : "";
@@ -64,6 +86,7 @@ export function register(registerTile) {
         graphic,
         foot:
           lines +
+          inkBars(data.inks) +
           `<button class="tile-btn" type="button" data-printers-settings>Open printer settings</button>`,
       });
       el.querySelector("[data-printers-settings]")?.addEventListener("click", () =>

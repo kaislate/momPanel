@@ -861,6 +861,41 @@ body.help-hidden .tile-help {
   color: var(--ink-dim);
   flex: none;
 }
+/* Ink-level bars (from CUPS marker attributes) under the printer list. */
+.ink-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 5px;
+}
+.ink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.ink-track {
+  width: 13px;
+  height: 32px;
+  border-radius: 4px;
+  background: var(--gauge-track);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+.ink-fill {
+  width: 100%;
+}
+.ink-pct {
+  font-size: 0.62rem;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.ink--low .ink-track {
+  outline: 2px solid var(--warn);
+  outline-offset: 1px;
+}
 
 /* weather tile */
 .wx-row {

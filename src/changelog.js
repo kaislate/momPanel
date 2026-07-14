@@ -1,6 +1,14 @@
 // Plain-English, kind "what's new" notes shown inside the app after an update, keyed
 // by version. (The GitHub release notes in CHANGELOG.md can be more technical.)
 export const CHANGELOG = {
+  "0.6.1": {
+    changes: [
+      "🖱️ Fixed: on Linux, the buttons (open printer settings, open storage, and friends) work again — a see-through window feature was quietly breaking clicks there.",
+      "🖼️ Companion mode's see-through background now shows your actual desktop on Linux — cleanly, with no ghost images — and there's a new “Invisible” setting that shows just the desktop behind your panel.",
+      "🔍 New in Companion mode: rest your mouse on any line in the “All is well” card (Wi-Fi, Printer, Sound…) to peek at its full tile — gauges, details, and buttons included.",
+      "🩸 The Printers tile now shows your ink levels as little colored bars, and warns you when one is running low — Companion mode mentions it too.",
+    ],
+  },
   "0.6.0": {
     changes: [
       "🍎 momPanel now runs on Macs too — alongside Linux and Windows. The settings buttons open the right screens on every system.",

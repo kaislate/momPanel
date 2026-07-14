@@ -35,6 +35,16 @@ body.companion[data-sky="night"]::before {
   background: linear-gradient(160deg, #090b12 0%, #0d1019 55%, #101527 100%);
 }
 
+/* Simulated see-through (Linux): the desktop wallpaper drawn as the bottom layer,
+   so lowering the sky reveals the desktop — and never other windows. */
+.comp-desktop {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-size: cover;
+  background-position: center;
+}
+
 /* Root layout: hero column (left), health card (right), attention row (bottom,
    only present when something needs a look). */
 /* Sized for the companion window (880x560 at scale "normal") — tighter than the
@@ -198,6 +208,33 @@ body.companion[data-sky="night"]::before {
   align-items: center;
   gap: 0.7rem;
   font-size: 1.05rem;
+  border-radius: 10px;
+  padding: 2px 7px;
+  margin: 0 -7px;
+  transition: background 0.15s ease;
+}
+/* Hovering a row peeks the matching classic tile beside the card. */
+.comp-health-row:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* The peek card itself reuses the classic .tile look; fixed width, floats beside
+   the health card above everything except modals. */
+.comp-peek {
+  position: fixed;
+  z-index: 60;
+  width: 280px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  animation: peek-in 0.16s ease;
+}
+.comp-peek[hidden] {
+  display: none;
+}
+@keyframes peek-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 .comp-dot {
   width: 0.7rem;
@@ -280,5 +317,8 @@ body.companion[data-sky="night"]::before {
   }
   .comp-attention {
     transition: none;
+  }
+  .comp-peek {
+    animation: none;
   }
 }

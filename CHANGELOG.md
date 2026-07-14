@@ -2,6 +2,35 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.6.1 — 2026-07-14
+
+### Fixed
+- **Linux buttons work again.** 0.6.0's `transparent: true` window broke input and
+  produced ghost/stale-frame artifacts on Linux/WebKitGTK (known upstream:
+  tauri-apps/tauri#14924, #13157 — the "you can see the About panel behind the sky"
+  report was a stale-buffer ghost). Diagnosed on the target machine: spawning
+  `gnome-control-center`/`gnome-disks` with the app's exact env works fine, so the
+  webview, not the backend, was eating the clicks. A new `tauri.linux.conf.json`
+  keeps the window **opaque on Linux only**; Windows/macOS keep real transparency.
+
+### Added
+- **Simulated see-through on Linux.** New `desktop_background` command returns the
+  wallpaper (GNOME `picture-uri`, Windows registry, macOS System Events) as a data
+  URL, cached by path+mtime; `supports_transparency` tells the frontend which mode
+  the OS gets. In companion mode on Linux the wallpaper is drawn as the bottom
+  layer, so "clear" skies reveal the desktop — and never other windows. A new
+  **"Invisible — just the desktop"** option (opacity 0, backend clamp now 0.0–1.0)
+  shows only the content over the desktop on every platform.
+- **Peek cards.** Hovering a companion health row (Wi-Fi, Printer, Sound, Speed,
+  Space, Internet) shows the corresponding classic tile — same renderer, same live
+  data, working buttons — as a popover beside the card (200ms intent delay,
+  Escape/mouse-away dismiss, reduced-motion honored).
+- **Ink levels.** The printers collector (Linux/macOS) queries the default queue's
+  IPP marker attributes via `ipptool` (pure `parse_marker_attrs` + fixture tests;
+  verified against the real ET-3760: K 49 / C 77 / M 80 / Y 80, low at 15). The
+  Printers tile renders per-color ink bars with a "running low" note, and
+  companion's Printer row goes amber "Ink low" with a calm attention card.
+
 ## 0.6.0 — 2026-07-13
 
 ### Added

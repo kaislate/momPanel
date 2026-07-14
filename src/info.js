@@ -91,6 +91,7 @@ export async function openInfo() {
       [0.7, "Half clear"],
       [0.55, "Mostly clear"],
       [0.4, "Very clear"],
+      [0, "Invisible — just the desktop"],
     ]
       .map(([v, l]) => {
         const cur = Number(cfg.companion_bg_opacity ?? 1);

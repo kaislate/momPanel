@@ -48,6 +48,9 @@ fn mime_from_ext(path: &Path) -> Option<&'static str> {
         "jpg" | "jpeg" => Some("image/jpeg"),
         "png" => Some("image/png"),
         "webp" => Some("image/webp"),
+        // Zorin ships several default wallpapers as SVG; data: SVG renders fine as a
+        // CSS background under the img-src data: CSP.
+        "svg" => Some("image/svg+xml"),
         _ => None,
     }
 }
@@ -86,8 +89,13 @@ fn encode_path(path: &Path) -> Option<String> {
 #[cfg(target_os = "linux")]
 fn wallpaper_path() -> Option<PathBuf> {
     for key in ["picture-uri-dark", "picture-uri"] {
+        // The dark-scheme key can point at a file that doesn't exist (seen on the
+        // target Zorin machine) — only accept a candidate that's actually there, so
+        // a stale dark URI falls through to the light wallpaper.
         if let Some(p) = gsettings_uri_path(key) {
-            return Some(p);
+            if p.is_file() {
+                return Some(p);
+            }
         }
     }
     None

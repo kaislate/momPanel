@@ -3,7 +3,7 @@
 //! Linux-only and degrade gracefully when a tool is absent.
 
 use crate::config::AppConfig;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(target_os = "linux")]
@@ -13,6 +13,12 @@ use std::process::Command;
 // this skips a fresh play while one is still going instead of stacking overlapping
 // players (and racing the volume raise/restore).
 static ALERT_PLAYING: AtomicBool = AtomicBool::new(false);
+
+// The desktop notification id of the current alert (0 = none). Each pulse REPLACES
+// this one notification instead of stacking a new critical entry in the tray every
+// 30s, and recovery/dismiss retracts it — critical notifications never auto-expire,
+// so an unretracted one leaves a permanent unread badge on the dock.
+static NOTIFICATION_ID: AtomicU32 = AtomicU32::new(0);
 
 /// The spoken/notification body. Names the top process; MB under 1024, else GB (1 dp).
 pub fn spoken_message(proc_name: &str, proc_mb: u64) -> String {
@@ -71,22 +77,53 @@ pub fn fire(app: &AppHandle, cfg: &AppConfig, percent: i64, proc_name: &str, pro
     }
 }
 
-/// Recovery: hide the escalation modal (notification/audio are one-shot).
+/// Recovery: hide the escalation modal and retract the tray notification.
 pub fn clear(app: &AppHandle) {
     hide_modal(app);
+    retract_notification();
 }
 
 #[cfg(target_os = "linux")]
 fn notify_critical(percent: i64, body: &str) {
-    let _ = Command::new("notify-send")
+    // -p prints the assigned id; -r replaces our previous alert so pulses update one
+    // tray entry instead of stacking. Capturing the id lets recovery retract it.
+    let prev = NOTIFICATION_ID.load(Ordering::Acquire);
+    let out = Command::new("notify-send")
         .args([
+            "-p",
+            "-r", &prev.to_string(),
             "-u", "critical",
             "-a", "momPanel",
             "-i", "dialog-warning",
             &format!("\u{26a0}\u{fe0f} Memory almost full \u{2014} {percent}% used"),
             body,
         ])
-        .spawn();
+        .output();
+    if let Ok(o) = out {
+        if let Ok(id) = String::from_utf8_lossy(&o.stdout).trim().parse::<u32>() {
+            NOTIFICATION_ID.store(id, Ordering::Release);
+        }
+    }
+}
+
+/// Withdraw the alert notification from the tray (no-op if none is up). Freedesktop
+/// CloseNotification is a no-op for unknown ids, so this is safe to over-call.
+pub fn retract_notification() {
+    #[cfg(target_os = "linux")]
+    {
+        let id = NOTIFICATION_ID.swap(0, Ordering::AcqRel);
+        if id != 0 {
+            let _ = Command::new("gdbus")
+                .args([
+                    "call", "--session",
+                    "--dest", "org.freedesktop.Notifications",
+                    "--object-path", "/org/freedesktop/Notifications",
+                    "--method", "org.freedesktop.Notifications.CloseNotification",
+                    &id.to_string(),
+                ])
+                .spawn();
+        }
+    }
 }
 
 #[cfg(target_os = "linux")]

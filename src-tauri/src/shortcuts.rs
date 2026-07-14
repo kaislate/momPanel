@@ -32,20 +32,50 @@ pub fn macos_open_args(t: &str) -> Option<Vec<&'static str>> {
     }
 }
 
+/// Append one line to <config>/momPanel/shortcuts.log — a field-diagnosable trace of
+/// every settings-button press (the Linux "buttons do nothing" report is otherwise
+/// invisible: failures are returned to the webview and silently swallowed there).
+/// Best-effort; starts over past 20 KB so it can never grow unbounded.
+fn trace(line: &str) {
+    let mut p = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+    p.push("momPanel");
+    let _ = std::fs::create_dir_all(&p);
+    p.push("shortcuts.log");
+    let fresh = std::fs::metadata(&p).map(|m| m.len() > 20_000).unwrap_or(false);
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let entry = format!("{ts} {line}\n");
+    let _ = if fresh {
+        std::fs::write(&p, entry)
+    } else {
+        use std::io::Write;
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&p)
+            .and_then(|mut f| f.write_all(entry.as_bytes()))
+    };
+}
+
 /// Open a native settings screen for `target`. Best-effort, never destructive.
 /// Unknown targets return `Err`.
 #[tauri::command]
 pub fn open_settings(target: String) -> Result<(), String> {
+    trace(&format!("open_settings invoked: {target}"));
     #[cfg(target_os = "linux")]
     {
-        match linux_cmd(&target) {
+        let r = match linux_cmd(&target) {
             Some((cmd, args)) => std::process::Command::new(cmd)
                 .args(&args)
                 .spawn()
                 .map(|_| ())
                 .map_err(|e| format!("failed to open settings for {}: {}", target, e)),
             None => Err(format!("unknown settings target: {}", target)),
-        }
+        };
+        trace(&format!("open_settings result: {:?}", r));
+        r
     }
 
     #[cfg(target_os = "windows")]

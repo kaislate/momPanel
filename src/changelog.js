@@ -1,6 +1,13 @@
 // Plain-English, kind "what's new" notes shown inside the app after an update, keyed
 // by version. (The GitHub release notes in CHANGELOG.md can be more technical.)
 export const CHANGELOG = {
+  "0.6.2": {
+    changes: [
+      "🫥 Companion mode's see-through background now works properly on Linux — “Invisible” really is invisible, showing whatever is behind the panel instead of a black box.",
+      "🔴 Fixed the stuck red notification dot: memory warnings now update one single notification instead of piling up, and it clears itself when memory recovers or you dismiss it.",
+      "🖥️ Rebuilt how the panel draws on Linux (a workaround for 2023-era graphics bugs was itself causing today's glitches) — this may also cure unresponsive buttons; if any button still does nothing, momPanel now keeps a small log so we can find out exactly why.",
+    ],
+  },
   "0.6.1": {
     changes: [
       "🖱️ Fixed: on Linux, the buttons (open printer settings, open storage, and friends) work again — a see-through window feature was quietly breaking clicks there.",

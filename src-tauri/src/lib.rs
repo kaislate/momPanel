@@ -88,6 +88,9 @@ mod theme_cfg_tests {
 #[tauri::command]
 fn dismiss_mem_warn(app: tauri::AppHandle) {
     memwatch::request_dismiss();
+    // Dismiss means "stop bugging me": retract the tray notification too, or its
+    // unread badge lingers on the dock until manually cleared.
+    notifier::retract_notification();
     if let Some(w) = app.get_webview_window("memwarn") {
         let _ = w.hide();
     }
@@ -122,13 +125,14 @@ fn unavail() -> serde_json::Value {
     serde_json::json!({ "state": "unavailable" })
 }
 
-/// Whether this platform supports a real transparent window. False on Linux, where
-/// WebKitGTK's transparency ghosts frames and breaks input (see the WEBKIT note in
-/// run()); the frontend uses this to pick real transparency (Win/mac) vs. a simulated
-/// wallpaper backdrop (Linux).
+/// Whether this platform supports a real transparent window. True everywhere since
+/// 0.6.2: the 0.6.0 Linux ghosting turned out to be the legacy renderer forced by the
+/// old WEBKIT_DISABLE_DMABUF_RENDERER workaround (see run()), not transparency itself.
+/// The frontend keeps a simulated wallpaper-backdrop path for any platform where this
+/// returns false, so flipping this back is a one-line revert if a setup misbehaves.
 #[tauri::command]
 fn supports_transparency() -> bool {
-    cfg!(not(target_os = "linux"))
+    true
 }
 
 /// The user's desktop wallpaper as a base64 `data:` URL, or null if it can't be
@@ -385,8 +389,15 @@ pub fn run() {
     // eats pointer input on those regions (tauri-apps/tauri#14924, #13157), which broke
     // buttons on Zorin. Linux instead simulates the see-through look with a wallpaper
     // backdrop drawn inside the (opaque) webview via desktop_background().
+    // 0.3.1 forced WEBKIT_DISABLE_DMABUF_RENDERER=1 to work around glitchy
+    // rendering/input on 2023-era WebKitGTK. On the current target stack (Zorin 18,
+    // WebKitGTK 2.48+) that legacy render path is the PROBLEM: it can't composite a
+    // transparent window (black instead of see-through) and ghosts stale frames
+    // (tauri#14924). DMABUF is healthy there, so the override is now opt-in only.
     #[cfg(target_os = "linux")]
-    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+    if std::env::var_os("MOMPANEL_LEGACY_RENDERER").is_some()
+        && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
+    {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
 

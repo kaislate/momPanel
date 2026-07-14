@@ -2,6 +2,37 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.6.2 — 2026-07-14
+
+### Fixed
+- **Real transparency on Linux.** 0.6.1's diagnosis was wrong: buttons stayed dead
+  with an opaque window, so transparency never broke input. The actual artifact
+  source is the 0.3.1-era `WEBKIT_DISABLE_DMABUF_RENDERER=1` workaround: on modern
+  WebKitGTK (Zorin 18 / 2.48+) that forces a legacy render path that can't composite
+  window alpha (black instead of see-through — the "Invisible shows black" report)
+  and ghosts stale frames. The env override is now **opt-in**
+  (`MOMPANEL_LEGACY_RENDERER=1`), `tauri.linux.conf.json` is removed (window
+  transparent everywhere again), and `supports_transparency` returns true (the
+  simulated-wallpaper fallback path remains in the frontend, dormant).
+  Verified locally that the platform-config merge DOES apply (mirror test on
+  Windows: override → opaque black window), so 0.6.1's Linux window really was
+  opaque — matching the black-at-Invisible report.
+- **Stuck unread badge (red dot) on the dock.** Memory-alert pulses spawned a new
+  `critical` notification every ~30s with no id tracking; critical notifications
+  never expire, so they piled up in the tray and pinned an unclearable badge.
+  `notify-send -p -r <id>` now maintains ONE tracked notification per episode, and
+  recovery/dismiss retract it via `CloseNotification` (safe to over-call).
+- **Wallpaper fallback correctness** (dormant path): `picture-uri-dark` can point at
+  a nonexistent file (seen on the target machine) — candidates are now
+  existence-checked so a stale dark URI falls through to the light one; SVG
+  wallpapers (Zorin defaults) gained a MIME mapping.
+
+### Added
+- `shortcuts.log` field trace (config dir, 20 KB cap): every `open_settings` press
+  logs invoke + spawn result, so the still-open "Linux buttons do nothing" report
+  can be pinpointed to frontend-vs-backend with one click on the real machine. The
+  render-path fix above is itself a plausible cure (legacy-renderer input bugs).
+
 ## 0.6.1 — 2026-07-14
 
 ### Fixed

@@ -16,6 +16,7 @@ import { showWhatsNew } from "./whatsnew.js";
 import { applyTheme, defaultTheme, PRESETS } from "./theme.js";
 import { closeActiveModal, setActiveModal } from "./modal.js";
 import { escapeHtml } from "./escape.js";
+import { OPACITY_STEPS, nearestStep } from "./opacity.js";
 
 export async function openInfo() {
   const root = document.getElementById("modal-root");
@@ -50,8 +51,11 @@ export async function openInfo() {
     .join("");
   const warnColor = cfg.mem_warn_color || "#D97706";
 
-  const check = (attr, on, label) =>
-    `<label class="info-auto"><input type="checkbox" ${attr} ${on ? "checked" : ""} /><span>${label}</span></label>`;
+  // Optional `note` renders as a smaller second line so long explanations don't
+  // balloon the clickable label itself.
+  const check = (attr, on, label, note = "") =>
+    `<label class="info-auto"><input type="checkbox" ${attr} ${on ? "checked" : ""} />` +
+    `<span>${label}${note ? `<small class="info-note">${note}</small>` : ""}</span></label>`;
 
   // Close any overlay already open (this open* is async, so one could be) before we
   // overwrite #modal-root, so its keydown listener doesn't leak.
@@ -81,21 +85,17 @@ export async function openInfo() {
     check(
       "data-experimental",
       cfg.experimental_ui,
-      "Try the new look — Companion mode (experimental). momPanel refreshes when you switch."
+      "Try the new look — Companion mode (experimental)",
+      "momPanel refreshes when you switch."
     ) +
     `<label class="info-row"><span>Companion background</span>` +
     `<select data-compbg>` +
-    [
-      [1, "Solid"],
-      [0.85, "Slightly clear"],
-      [0.7, "Half clear"],
-      [0.55, "Mostly clear"],
-      [0.4, "Very clear"],
-      [0, "Invisible — just the desktop"],
-    ]
+    OPACITY_STEPS
+      // nearestStep: a value stored under the old step scale still selects the
+      // closest option instead of leaving the select blank.
       .map(([v, l]) => {
-        const cur = Number(cfg.companion_bg_opacity ?? 1);
-        return `<option value="${v}" ${Math.abs(cur - v) < 0.01 ? "selected" : ""}>${l}</option>`;
+        const cur = nearestStep(cfg.companion_bg_opacity ?? 1);
+        return `<option value="${v}" ${cur === v ? "selected" : ""}>${l}</option>`;
       })
       .join("") +
     `</select></label>` +

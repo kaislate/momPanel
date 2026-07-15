@@ -1,6 +1,15 @@
 // Plain-English, kind "what's new" notes shown inside the app after an update, keyed
 // by version. (The GitHub release notes in CHANGELOG.md can be more technical.)
 export const CHANGELOG = {
+  "0.6.3": {
+    changes: [
+      "📐 Tiles finally have elbow room: the window is a little taller, the gauges size themselves to fit, and nothing squishes or overlaps anymore — the Storage tile especially is back to looking tidy.",
+      "🗂️ The About window behaves in small windows too: settings columns rearrange themselves instead of crushing together, and drop-downs stay inside their column.",
+      "🫥 See-through Companion mode is truly see-through now — the faint leftover tint is gone on both Linux and Windows, and “Very clear” really is very clear.",
+      "🪟 On Windows, the odd old-fashioned title bar that peeked through a see-through panel (or flashed while moving it) is gone for good.",
+      "📌 Fixed a sneaky bug where minimizing momPanel could make it reopen invisible — parked off the edge of the screen — the next time it started.",
+    ],
+  },
   "0.6.2": {
     changes: [
       "🫥 Companion mode's see-through background now works properly on Linux — “Invisible” really is invisible, showing whatever is behind the panel instead of a black box.",

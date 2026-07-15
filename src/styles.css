@@ -1,7 +1,4 @@
 :root {
-  /* Render native form controls (select popups, color pickers) in dark mode so their
-     option lists aren't white-on-white against momPanel's dark UI. */
-  color-scheme: dark;
   --bg: #0e1119;
   --tile: #1b2030;
   --tile-hover: #232a42;
@@ -38,6 +35,17 @@
   box-sizing: border-box;
 }
 
+/* Render native form controls (select popups, color pickers) and modal scrollbars in
+   dark mode so they aren't white-on-white against momPanel's dark UI. Deliberately
+   NOT set on :root: WebView2 and WebKitGTK paint the root color-scheme's canvas color
+   behind the page, which tinted companion mode's transparent window on both OSes. */
+select,
+input,
+textarea,
+.modal-card {
+  color-scheme: dark;
+}
+
 html,
 body {
   margin: 0;
@@ -50,14 +58,18 @@ body {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(3, 1fr);
+  /* minmax(0, 1fr), not bare 1fr: a bare 1fr track never shrinks below its content's
+     auto minimum, so one tall tile silently pushed rows past the window edge and
+     tiles overlapped. minmax(0, 1fr) keeps the 4x3 sheet exactly the window size and
+     lets the flexible tile innards (gauges, icons) do the shrinking instead. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
   grid-template-areas:
     "clock date    date     weather"
     "cpu   memory  storage  weather"
     "wifi  internet printers volume";
-  gap: 1.1rem;
-  padding: 1.4rem;
+  gap: 1rem;
+  padding: 1.2rem;
   height: 100vh;
 }
 
@@ -81,6 +93,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden; /* last-resort clip: content must never bleed into a neighbor */
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
     box-shadow 0.28s ease, background 0.28s ease;
@@ -170,7 +183,9 @@ body {
   opacity: 0.5;
 }
 
-/* Shared tile structure: graphic fills the middle and centers; foot sits at bottom. */
+/* Shared tile structure: graphic fills the middle and centers; foot sits at bottom.
+   The graphic is the flexible part of every tile: it absorbs whatever height the
+   foot doesn't need, and its children (gauges, icons) shrink with it. */
 .tile-graphic {
   flex: 1 1 auto;
   min-height: 0;
@@ -180,9 +195,10 @@ body {
   justify-content: center;
   gap: 6px;
   text-align: center;
+  overflow: hidden;
 }
 .tile-foot {
-  margin-top: 0.6rem;
+  margin-top: 0.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -192,6 +208,10 @@ body {
 .tile-foot .tile-btn,
 .tile-foot .wx-change {
   align-self: stretch;
+}
+/* The foot's own gap already separates the button from the line above it. */
+.tile-foot .tile-btn {
+  margin-top: 4px;
 }
 .graphic-muted {
   opacity: 0.45;
@@ -237,7 +257,17 @@ body {
   color: var(--ink);
 }
 
-/* small "X GB free of Y GB" detail under the storage gauge */
+/* Storage: the drive icon with the "X GB used of Y GB" detail stacked under it,
+   sitting left of the ring. Keeping the detail out of the foot (which stays just
+   status + button) is what leaves the ring room to match the other tiles'. */
+.storage-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
 .storage-detail {
   font-size: 0.82rem;
   color: var(--ink-dim);
@@ -260,10 +290,16 @@ body {
   color: var(--ink-dim);
 }
 
-/* shared gauge */
+/* Shared gauge. Sized by the space the tile actually has — it fills the graphic
+   area up to the cap and shrinks (never overlaps) when the tile is tight. The cap
+   is chosen so every ring in the panel lands the same size at the base window:
+   tiles with a button in the foot have ~5.5rem of graphic left over, so tiles
+   without one are capped to match rather than growing bigger rings. */
 .gauge {
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  max-height: 8.5rem;
+  max-height: 5.5rem;
 }
 .gauge-label {
   fill: var(--ink);
@@ -281,10 +317,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .wifi-connected svg {
-  width: 5rem;
-  height: 5rem;
+  height: 100%;
+  max-height: 5rem;
+  width: auto;
 }
 
 /* Volume muted: the crossed speaker IS the graphic — "sound is off" is the
@@ -294,20 +333,25 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .volume-muted svg {
-  width: 5rem;
-  height: 5rem;
+  height: 100%;
+  max-height: 5rem;
+  width: auto;
 }
 
-/* Memory/Storage: device icon on the left, gauge pushed to the right; both gauges a
-   fixed identical size so the two tiles match exactly. */
+/* CPU/Memory/Storage: device icon on the left, gauge pushed to the right. The row
+   takes all the height the graphic area offers and the ring sizes itself from it. */
 .gauge-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.8rem;
   width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .gauge-row .device-icon {
   width: 3.4rem;
@@ -439,10 +483,15 @@ body {
   font-weight: 400;
   margin-left: 5px;
 }
+/* The ring's box inside a gauge-row: square, as tall as the row allows, capped to
+   the shared ring size (see .gauge) so all tiles' rings match. */
 .gauge-fixed {
-  width: 7rem;
-  height: 7rem;
-  flex: none;
+  height: 100%;
+  max-height: 5.5rem;
+  min-height: 0;
+  aspect-ratio: 1;
+  width: auto;
+  flex: 0 1 auto;
 }
 .gauge-fixed .gauge {
   width: 100%;
@@ -586,7 +635,9 @@ body.help-hidden .tile-help {
    visible at once with no scrolling to discover options. */
 .modal-card.info-card {
   position: relative;
-  width: min(900px, 94vw);
+  /* rem, not px: at the big/biggest size steps the pane grows with the text, so
+     the three columns keep their room instead of squeezing the labels/selects. */
+  width: min(56rem, 94vw);
   max-height: 92vh;
   overflow-y: auto;
   overflow-x: hidden;
@@ -617,7 +668,8 @@ body.help-hidden .tile-help {
 .info-head {
   display: flex;
   align-items: center;
-  gap: 14px;
+  flex-wrap: wrap; /* narrow window: the action buttons drop below the identity */
+  gap: 8px 14px;
   padding-right: 42px;
 }
 .info-id {
@@ -638,8 +690,10 @@ body.help-hidden .tile-help {
 }
 .info-cols {
   display: grid;
-  grid-template-columns: 1.1fr 1fr 1fr;
-  gap: 0 28px;
+  /* Reflow instead of squish: three columns when the pane is wide (classic mode),
+     two + wrap in the smaller companion window — labels never fight the controls. */
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px 28px;
   margin-top: 10px;
 }
 .info-col {
@@ -697,6 +751,13 @@ body.help-hidden .tile-help {
   flex: 1;
   min-width: 0; /* allow the label text to wrap instead of overflowing */
 }
+/* Secondary line under a checkbox label (e.g. "momPanel refreshes when you switch"). */
+.info-note {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.8;
+  margin-top: 2px;
+}
 /* Settings rows with a control on the right (threshold select, color picker). */
 .info-row {
   display: flex;
@@ -709,6 +770,10 @@ body.help-hidden .tile-help {
   width: 100%;
   text-align: left;
 }
+.info-row > span {
+  flex: 1 1 auto;
+  min-width: 0; /* the label wraps inside its own box instead of pushing the control */
+}
 .info-row select {
   font: inherit;
   color: var(--ink);
@@ -717,6 +782,14 @@ body.help-hidden .tile-help {
   border-radius: 8px;
   padding: 5px 28px 5px 10px;
   cursor: pointer;
+  /* A select's intrinsic width is its longest option; cap it so it can never
+     overflow its settings column (ellipsize then), but never let the row squeeze
+     it below content size — the label wraps instead. */
+  flex: 0 0 auto;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   /* Drop the generic native chevron and draw our own so it matches the dark UI. */
   -webkit-appearance: none;
   appearance: none;
@@ -834,6 +907,8 @@ body.help-hidden .tile-help {
   height: 4rem; /* reserved height so the recreated <img> doesn't reflow on refresh */
   max-width: 100%;
   object-fit: contain;
+  flex: 0 1 auto; /* the photo is decorative — it gives way when the list needs room */
+  min-height: 0;
 }
 .printer-line {
   display: flex;

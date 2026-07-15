@@ -856,6 +856,18 @@ body.help-hidden .tile-help {
 .whatsnew-list li {
   margin-bottom: 8px;
 }
+/* Older/Newer paging links under the "Got it" button. */
+.whatsnew-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-size: 0.9rem;
+}
+.whatsnew-nav a {
+  color: var(--accent);
+  cursor: pointer;
+  padding: 4px 2px; /* a little slack around the small tap target */
+}
 
 /* Per-tile "what is this?" popup */
 .help-card {

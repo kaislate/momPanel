@@ -12,6 +12,7 @@ export const CHANGELOG = {
       "⚙️ In Companion mode the little settings gear now sits right under the “All is well” card instead of floating off in the corner by itself.",
       "📏 New option: make the “All is well” side the same height as the clock-and-weather side, for a tidier, more even look (About window).",
       "📜 Popups like this one now scroll with a slim rounded bar instead of a boxy scrollbar with arrows.",
+      "🕰️ Curious what changed before? This popup now has “Older updates” and “Newer updates” links at the bottom, so you can flip through every past update note.",
     ],
   },
   "0.6.2": {
@@ -104,4 +105,20 @@ export const CHANGELOG = {
 // Returns the entry for a version, or null if we don't have notes for it.
 export function changesFor(version) {
   return CHANGELOG[version] || null;
+}
+
+// Every version with notes, newest first (the CHANGELOG object's insertion order).
+export function versionsNewestFirst() {
+  return Object.keys(CHANGELOG);
+}
+
+// The entries to step to from `version` in the What's New history: `older` is the
+// next entry further back, `newer` the next one forward; null at either end. An
+// unknown version (e.g. a dev build with no notes yet) still offers the newest
+// recorded entry as `older`, so the history stays reachable.
+export function neighbors(version) {
+  const list = versionsNewestFirst();
+  const i = list.indexOf(version);
+  if (i === -1) return { older: list[0] ?? null, newer: null };
+  return { older: list[i + 1] ?? null, newer: i > 0 ? list[i - 1] : null };
 }

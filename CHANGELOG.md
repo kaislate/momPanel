@@ -48,6 +48,10 @@ All notable changes to momPanel. Dates are YYYY-MM-DD.
   (found live during 0.6.3 verification — the panel genuinely vanished).
 
 ### Added
+- **What's New history.** The popup now pages through every past release's notes
+  via Older/Newer links (entries were always kept in `changelog.js`; only the
+  latest was ever shown). Older entries get a 🕰️ header so they read as history,
+  not a fresh update. Navigation helper unit-tested in `tests/changelog.test.mjs`.
 - **Companion mode: the controls gear docks under the "All is well" card** instead
   of floating alone in the window corner — over a see-through sky the lone corner
   gear looked detached from the panel. Classic grid keeps the corner placement.

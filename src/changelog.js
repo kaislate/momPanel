@@ -8,6 +8,7 @@ export const CHANGELOG = {
       "🫥 See-through Companion mode is truly see-through now — the faint leftover tint is gone on both Linux and Windows, and “Very clear” really is very clear.",
       "🪟 On Windows, the odd old-fashioned title bar that peeked through a see-through panel (or flashed while moving it) is gone for good.",
       "📌 Fixed a sneaky bug where minimizing momPanel could make it reopen invisible — parked off the edge of the screen — the next time it started.",
+      "🛡️ New in Companion mode: turn on a solid panel behind the clock &amp; weather, or behind the “All is well” card, so a busy wallpaper can't make them hard to read. Both live in the About window.",
     ],
   },
   "0.6.2": {

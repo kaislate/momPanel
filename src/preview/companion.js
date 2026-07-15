@@ -587,6 +587,9 @@ export async function initCompanion() {
   document.documentElement.style.setProperty("--comp-bg-alpha", String(alpha));
 
   buildSkeleton(document.getElementById("grid"));
+  // Solid readability panels behind the hero and/or health card (About → General).
+  document.querySelector(".comp-hero")?.classList.toggle("comp-solid", !!cfg.companion_solid_hero);
+  document.querySelector(".comp-health")?.classList.toggle("comp-solid", !!cfg.companion_solid_health);
   initPeek();
 
   tickClock();

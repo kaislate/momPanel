@@ -44,6 +44,13 @@ All notable changes to momPanel. Dates are YYYY-MM-DD.
   when restoring, which also heals configs already poisoned by the old behavior
   (found live during 0.6.3 verification — the panel genuinely vanished).
 
+### Added
+- **Companion mode: solid readability panels.** Two new About → General toggles
+  draw an opaque, tile-colored panel behind the time/weather section and/or the
+  "All is well" card, so a busy wallpaper showing through a clear sky can't fight
+  the text. Applied live, off by default (`companion_solid_hero` /
+  `companion_solid_health`, round-trip unit-tested).
+
 ### Changed
 - **Window is taller: 1100×760 (was 1100×680).** 680 gave each grid row ~200px
   against ~300px of Storage-tile content — the original sin behind the overlap. On

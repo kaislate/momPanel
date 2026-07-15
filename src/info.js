@@ -99,6 +99,10 @@ export async function openInfo() {
       })
       .join("") +
     `</select></label>` +
+    // Solid panels keep companion mode readable when a busy wallpaper shows
+    // through a clear sky. Applied live — no refresh needed.
+    check("data-solidhero", cfg.companion_solid_hero, "Solid panel behind time &amp; weather") +
+    check("data-solidhealth", cfg.companion_solid_health, "Solid panel behind &ldquo;All is well&rdquo;") +
     `</section>` +
     // --- Column 2: Memory alerts ---
     `<section class="info-col"><h3 class="info-section">Memory alerts</h3>` +
@@ -217,6 +221,17 @@ export async function openInfo() {
   root.querySelector("[data-experimental]").addEventListener("change", async (e) => {
     await setConfig({ experimental_ui: e.target.checked });
     location.reload();
+  });
+
+  // Solid readability panels: persist and apply live to the companion DOM behind
+  // this overlay (querySelector finds nothing in the classic grid — harmless).
+  root.querySelector("[data-solidhero]").addEventListener("change", (e) => {
+    setConfig({ companion_solid_hero: e.target.checked });
+    document.querySelector(".comp-hero")?.classList.toggle("comp-solid", e.target.checked);
+  });
+  root.querySelector("[data-solidhealth]").addEventListener("change", (e) => {
+    setConfig({ companion_solid_health: e.target.checked });
+    document.querySelector(".comp-health")?.classList.toggle("comp-solid", e.target.checked);
   });
 
   // Companion sky opacity: persist and apply live (the CSS var is only consumed by

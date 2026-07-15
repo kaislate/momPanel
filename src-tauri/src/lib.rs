@@ -72,6 +72,29 @@ mod alert_cfg_tests {
 }
 
 #[cfg(test)]
+mod patch_tests {
+    use super::apply_patch;
+    use crate::config::AppConfig;
+
+    #[test]
+    fn companion_solid_panels_patch_applies() {
+        let mut c = AppConfig::default();
+        let patch = serde_json::json!({
+            "companion_solid_hero": true,
+            "companion_solid_health": true
+        });
+        apply_patch(&mut c, &patch).unwrap();
+        assert!(c.companion_solid_hero);
+        assert!(c.companion_solid_health);
+        // And back off again — the merge honors explicit false too.
+        let patch = serde_json::json!({ "companion_solid_hero": false });
+        apply_patch(&mut c, &patch).unwrap();
+        assert!(!c.companion_solid_hero);
+        assert!(c.companion_solid_health); // untouched key preserved
+    }
+}
+
+#[cfg(test)]
 mod theme_cfg_tests {
     use super::valid_preset;
     #[test]
@@ -310,6 +333,12 @@ fn apply_patch(current: &mut AppConfig, cfg: &serde_json::Value) -> Result<(), S
     }
     if let Some(b) = cfg.get("experimental_ui").and_then(|v| v.as_bool()) {
         current.experimental_ui = b;
+    }
+    if let Some(b) = cfg.get("companion_solid_hero").and_then(|v| v.as_bool()) {
+        current.companion_solid_hero = b;
+    }
+    if let Some(b) = cfg.get("companion_solid_health").and_then(|v| v.as_bool()) {
+        current.companion_solid_health = b;
     }
     if let Some(o) = cfg.get("companion_bg_opacity").and_then(|v| v.as_f64()) {
         // Allow a fully-invisible sky (0.0): the frontend now draws a real backdrop

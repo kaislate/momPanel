@@ -178,6 +178,13 @@ pub struct AppConfig {
     /// Companion-mode background opacity, 0.0 (invisible) to 1.0 (solid).
     #[serde(default = "default_companion_bg_opacity")]
     pub companion_bg_opacity: f64,
+    /// Companion mode: draw a solid panel behind the time/weather section, so it
+    /// stays readable when a busy wallpaper shows through a clear sky.
+    #[serde(default)]
+    pub companion_solid_hero: bool,
+    /// Companion mode: same, behind the "All is well" health card.
+    #[serde(default)]
+    pub companion_solid_health: bool,
 }
 
 fn default_companion_bg_opacity() -> f64 {
@@ -213,6 +220,8 @@ impl Default for AppConfig {
             geo_place: None,
             experimental_ui: false,
             companion_bg_opacity: 1.0,
+            companion_solid_hero: false,
+            companion_solid_health: false,
         }
     }
 }
@@ -341,6 +350,24 @@ mod tests {
         assert!(c.window_x.is_none());
         assert!(c.geo_lat.is_none());
         assert!(!c.experimental_ui);
+    }
+
+    #[test]
+    fn companion_solid_panels_default_off_and_round_trip() {
+        // Off by default, absent from old configs, and survive a save/load cycle.
+        let c = AppConfig::default();
+        assert!(!c.companion_solid_hero);
+        assert!(!c.companion_solid_health);
+        let old: AppConfig = serde_json::from_str(r#"{"zip":"90210"}"#).unwrap();
+        assert!(!old.companion_solid_hero);
+        assert!(!old.companion_solid_health);
+        let mut c = AppConfig::default();
+        c.companion_solid_hero = true;
+        c.companion_solid_health = true;
+        let s = serde_json::to_string(&c).unwrap();
+        let back: AppConfig = serde_json::from_str(&s).unwrap();
+        assert!(back.companion_solid_hero);
+        assert!(back.companion_solid_health);
     }
 
     #[test]

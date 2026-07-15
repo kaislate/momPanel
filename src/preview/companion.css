@@ -175,6 +175,20 @@ body.companion[data-sky="night"]::before {
   align-self: flex-start;
 }
 
+/* Solid readability panels (About → General): an opaque, tile-colored backing for
+   the hero and/or the health card, so a busy wallpaper showing through a clear sky
+   can't fight the text. Opt-in per section; the sky opacity stays independent. */
+.comp-hero.comp-solid,
+.comp-health.comp-solid {
+  background: var(--tile);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.comp-hero.comp-solid {
+  border-radius: 22px;
+  padding: 1.2rem 1.5rem;
+  align-self: center;
+}
+
 /* ---- Health card: one glance says whether anything needs attention ---- */
 .comp-health {
   background: rgba(255, 255, 255, 0.045);

@@ -910,6 +910,9 @@ body.help-hidden .tile-help {
 }
 .modal-card::-webkit-scrollbar-track {
   background: transparent;
+  /* Inset the thumb's travel range from both ends so it never rides into the
+     card's rounded corners (matches the 20px border-radius). */
+  margin: 20px 0;
 }
 .modal-card::-webkit-scrollbar-thumb {
   background: #3a4566;

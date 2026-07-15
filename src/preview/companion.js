@@ -283,6 +283,9 @@ function buildSkeleton(main) {
     `<div class="comp-date"></div>` +
     `<div class="comp-weather"></div>` +
     `</div>` +
+    // comp-side: the health card plus, at runtime, the docked controls gear (see
+    // initCompanion) — one column so the gear never floats alone over transparency.
+    `<div class="comp-side">` +
     `<div class="comp-health">` +
     `<div class="comp-health-head">${heartSvg()}<div class="comp-health-title"></div></div>` +
     CONCERNS.map(
@@ -292,6 +295,7 @@ function buildSkeleton(main) {
         `<span class="comp-row-label">${c.label}</span>` +
         `<span class="comp-row-word">—</span></div>`
     ).join("") +
+    `</div>` +
     `</div>` +
     `<div class="comp-attention"></div>`;
 
@@ -590,6 +594,8 @@ export async function initCompanion() {
   // Solid readability panels behind the hero and/or health card (About → General).
   document.querySelector(".comp-hero")?.classList.toggle("comp-solid", !!cfg.companion_solid_hero);
   document.querySelector(".comp-health")?.classList.toggle("comp-solid", !!cfg.companion_solid_health);
+  // Same-height panels: the health card stretches to the hero section's height.
+  document.querySelector(".comp")?.classList.toggle("comp-match", !!cfg.companion_match_heights);
   initPeek();
 
   tickClock();

@@ -103,6 +103,7 @@ export async function openInfo() {
     // through a clear sky. Applied live — no refresh needed.
     check("data-solidhero", cfg.companion_solid_hero, "Solid panel behind time &amp; weather") +
     check("data-solidhealth", cfg.companion_solid_health, "Solid panel behind &ldquo;All is well&rdquo;") +
+    check("data-matchheights", cfg.companion_match_heights, "Make both sections the same height") +
     `</section>` +
     // --- Column 2: Memory alerts ---
     `<section class="info-col"><h3 class="info-section">Memory alerts</h3>` +
@@ -232,6 +233,10 @@ export async function openInfo() {
   root.querySelector("[data-solidhealth]").addEventListener("change", (e) => {
     setConfig({ companion_solid_health: e.target.checked });
     document.querySelector(".comp-health")?.classList.toggle("comp-solid", e.target.checked);
+  });
+  root.querySelector("[data-matchheights]").addEventListener("change", (e) => {
+    setConfig({ companion_match_heights: e.target.checked });
+    document.querySelector(".comp")?.classList.toggle("comp-match", e.target.checked);
   });
 
   // Companion sky opacity: persist and apply live (the CSS var is only consumed by

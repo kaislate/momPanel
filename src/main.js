@@ -43,6 +43,11 @@ async function boot() {
     const { initCompanion } = await import("./preview/companion.js");
     await initCompanion();
     mountControls(chrome);
+    // Dock the controls gear under the health card instead of leaving it floating
+    // in the window corner — over a see-through sky a lone corner gear looks lost.
+    const controls = document.querySelector(".scale-control");
+    const side = document.querySelector(".comp-side");
+    if (controls && side) side.appendChild(controls);
     checkWhatsNew();
     return;
   }

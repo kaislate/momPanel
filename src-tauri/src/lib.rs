@@ -92,6 +92,15 @@ mod patch_tests {
         assert!(!c.companion_solid_hero);
         assert!(c.companion_solid_health); // untouched key preserved
     }
+
+    #[test]
+    fn companion_match_heights_patch_applies() {
+        let mut c = AppConfig::default();
+        apply_patch(&mut c, &serde_json::json!({ "companion_match_heights": true })).unwrap();
+        assert!(c.companion_match_heights);
+        apply_patch(&mut c, &serde_json::json!({ "companion_match_heights": false })).unwrap();
+        assert!(!c.companion_match_heights);
+    }
 }
 
 #[cfg(test)]
@@ -339,6 +348,9 @@ fn apply_patch(current: &mut AppConfig, cfg: &serde_json::Value) -> Result<(), S
     }
     if let Some(b) = cfg.get("companion_solid_health").and_then(|v| v.as_bool()) {
         current.companion_solid_health = b;
+    }
+    if let Some(b) = cfg.get("companion_match_heights").and_then(|v| v.as_bool()) {
+        current.companion_match_heights = b;
     }
     if let Some(o) = cfg.get("companion_bg_opacity").and_then(|v| v.as_f64()) {
         // Allow a fully-invisible sky (0.0): the frontend now draws a real backdrop

@@ -37,6 +37,9 @@ All notable changes to momPanel. Dates are YYYY-MM-DD.
   jumping to 0, so "Very clear" still read as a heavy tint. New steps: 1 / 0.7 /
   0.45 / 0.25 / 0.1 / 0; values saved under the old scale snap to the closest step
   (unit-tested in `tests/opacity.test.mjs`).
+- **Scrollable popups (What's New, About) use a slim, arrowless scrollbar.** The
+  native bar painted a square gutter with arrow buttons over the card's rounded
+  right edge; the new inset thumb keeps both corners round.
 - **Minimizing no longer makes momPanel reopen invisible.** Windows "moves" a
   minimized window to (-32000, -32000) and `WindowEvent::Moved` reports it; the
   remember-my-position feature saved that spot, so the next launch restored the
@@ -45,6 +48,13 @@ All notable changes to momPanel. Dates are YYYY-MM-DD.
   (found live during 0.6.3 verification — the panel genuinely vanished).
 
 ### Added
+- **Companion mode: the controls gear docks under the "All is well" card** instead
+  of floating alone in the window corner — over a see-through sky the lone corner
+  gear looked detached from the panel. Classic grid keeps the corner placement.
+- **Companion mode: "Make both sections the same height"** (About → General): the
+  health card stretches to the hero section's height (rows spread evenly) so the
+  two sides read as one congruent layout. Off by default; config + partial-merge
+  unit-tested.
 - **Companion mode: solid readability panels.** Two new About → General toggles
   draw an opaque, tile-colored panel behind the time/weather section and/or the
   "All is well" card, so a busy wallpaper showing through a clear sky can't fight

@@ -9,6 +9,9 @@ export const CHANGELOG = {
       "🪟 On Windows, the odd old-fashioned title bar that peeked through a see-through panel (or flashed while moving it) is gone for good.",
       "📌 Fixed a sneaky bug where minimizing momPanel could make it reopen invisible — parked off the edge of the screen — the next time it started.",
       "🛡️ New in Companion mode: turn on a solid panel behind the clock &amp; weather, or behind the “All is well” card, so a busy wallpaper can't make them hard to read. Both live in the About window.",
+      "⚙️ In Companion mode the little settings gear now sits right under the “All is well” card instead of floating off in the corner by itself.",
+      "📏 New option: make the “All is well” side the same height as the clock-and-weather side, for a tidier, more even look (About window).",
+      "📜 Popups like this one now scroll with a slim rounded bar instead of a boxy scrollbar with arrows.",
     ],
   },
   "0.6.2": {

@@ -185,6 +185,10 @@ pub struct AppConfig {
     /// Companion mode: same, behind the "All is well" health card.
     #[serde(default)]
     pub companion_solid_health: bool,
+    /// Companion mode: stretch the "All is well" card to the hero section's height
+    /// so the two sides read as one congruent layout.
+    #[serde(default)]
+    pub companion_match_heights: bool,
 }
 
 fn default_companion_bg_opacity() -> f64 {
@@ -222,6 +226,7 @@ impl Default for AppConfig {
             companion_bg_opacity: 1.0,
             companion_solid_hero: false,
             companion_solid_health: false,
+            companion_match_heights: false,
         }
     }
 }
@@ -368,6 +373,18 @@ mod tests {
         let back: AppConfig = serde_json::from_str(&s).unwrap();
         assert!(back.companion_solid_hero);
         assert!(back.companion_solid_health);
+    }
+
+    #[test]
+    fn companion_match_heights_default_off_and_round_trip() {
+        assert!(!AppConfig::default().companion_match_heights);
+        let old: AppConfig = serde_json::from_str(r#"{"zip":"90210"}"#).unwrap();
+        assert!(!old.companion_match_heights);
+        let mut c = AppConfig::default();
+        c.companion_match_heights = true;
+        let s = serde_json::to_string(&c).unwrap();
+        let back: AppConfig = serde_json::from_str(&s).unwrap();
+        assert!(back.companion_match_heights);
     }
 
     #[test]

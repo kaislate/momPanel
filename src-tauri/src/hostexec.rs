@@ -17,7 +17,7 @@
 //! not just $APPDIR.
 
 /// Env vars AppRun points into the mounted AppImage; children must not see them.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))] // consumed by host_command (Linux-only)
+#[cfg_attr(not(unix), allow(dead_code))] // consumed by host_command (unix-only)
 const APPIMAGE_VARS: &[&str] = &[
     "LD_LIBRARY_PATH",
     "LD_PRELOAD",
@@ -62,7 +62,9 @@ pub fn scrub_path_list(value: &str, appdir: Option<&str>) -> String {
 /// A `Command` for `program` with the AppImage environment stripped: the module
 /// variables removed, PATH and XDG_DATA_DIRS scrubbed, and the working directory
 /// moved out of the (read-only, soon-to-vanish) mount to the user's home.
-#[cfg(target_os = "linux")]
+/// Compiled for all unix targets — some call sites (the CUPS printer collector)
+/// are shared with macOS, where none of the variables exist and this is a no-op.
+#[cfg(unix)]
 pub fn host_command(program: &str) -> std::process::Command {
     let appdir = std::env::var("APPDIR").ok();
     let mut cmd = std::process::Command::new(program);

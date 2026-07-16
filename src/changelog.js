@@ -1,6 +1,12 @@
 // Plain-English, kind "what's new" notes shown inside the app after an update, keyed
 // by version. (The GitHub release notes in CHANGELOG.md can be more technical.)
 export const CHANGELOG = {
+  "0.6.5": {
+    changes: [
+      "🖼️ On Linux, Companion mode's see-through background shows your actual wallpaper again — “Invisible” was coming up plain white because the app was being handed the wrong wallpaper (one that didn't exist) by the same library mix-up that broke the buttons. Also fixed for good measure: the clear setting now refuses to show a blank page even if the wallpaper can't be found.",
+      "🧰 The same library mix-up was quietly at risk of breaking sounds, alerts, and status readings on Linux — all of those now launch with a clean slate too.",
+    ],
+  },
   "0.6.4": {
     changes: [
       "🔘 On Linux, the buttons (open printer settings, open storage, and friends) truly work now. We caught the culprit red-handed on the real machine: the app was accidentally lending its own bundled libraries to the settings programs it opened, which made them crash before showing anything. They now launch with a clean slate.",

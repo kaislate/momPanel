@@ -2,6 +2,30 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.6.5 — 2026-07-16
+
+### Fixed
+- **Linux: companion "Invisible" showed a white void instead of the wallpaper.**
+  Two stacked causes, diagnosed live on the target machine. (1) The wallpaper
+  lookup's `gsettings` call still ran with the raw AppImage env (0.6.4's hostexec
+  fix covered the settings buttons and `xdg-open` only); gsettings couldn't load
+  the dconf GIO module (`libdconfsettings.so: undefined symbol`) and silently
+  answered with SCHEMA DEFAULTS — `adwaita-l/d.jpg` paths that don't exist on
+  Zorin — so no backdrop layer was ever created. (2) The About panel's live
+  opacity control set the sky opacity directly, bypassing the boot-time
+  "nothing to reveal → stay solid" guard, exposing the webview's blank canvas.
+  `gsettings` now goes through hostexec, and the live control keeps the sky
+  visually solid when no backdrop exists (`body.dataset.backdrop`).
+- **All remaining Linux host spawns hardened** against the same AppImage env
+  poisoning: notify-send, gdbus, canberra-gtk-play, wpctl (×3), spd-say, nmcli
+  (×2), lpstat (×2), ipptool. These mostly worked by luck — the tools that don't
+  load GIO modules survived — but it's one bug class, now with one mechanism.
+
+### Added
+- `wallpaper.log` (config dir, 20 KB cap): traces each backdrop resolution —
+  gsettings values per key, existence checks, chosen file, encoded size — so the
+  next field report pinpoints the failing step in one SSH read.
+
 ## 0.6.4 — 2026-07-16
 
 ### Fixed

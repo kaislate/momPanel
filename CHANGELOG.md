@@ -2,6 +2,33 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.6.4 — 2026-07-16
+
+### Fixed
+- **Linux: the settings buttons finally, actually work — root cause found on the
+  target machine.** The AppImage runtime exports its mounted squashfs into the
+  app's environment (`LD_LIBRARY_PATH`, GTK/GDK/GST module paths, `PATH`, cwd);
+  spawned host tools like `gnome-control-center` inherited it, resolved host
+  libraries against the AppImage's older bundled copies, and died instantly with a
+  symbol lookup error (`libcurl-gnutls` vs bundled `libnghttp2` — captured live on
+  Zorin 18.1 via the 0.6.2 `shortcuts.log` trace + a zombie child + env-replay).
+  `spawn()` returned Ok, so the log looked clean. All host spawns (settings
+  shortcuts, `xdg-open`) now go through `hostexec::host_command`, which strips the
+  AppImage variables and scrubs mount dirs out of `PATH`/`XDG_DATA_DIRS` — the
+  updater's relaunch chain can stack several generations of mounts (three seen
+  live), so components are filtered individually. Sanitized-env replay on the real
+  machine launches gnome-control-center cleanly. 0.6.1's "transparency eats input"
+  diagnosis was wrong: clicks always arrived.
+- **Linux: ghost frames in transparent regions (closed About panel and
+  notification-animation trails staying visible).** 0.6.2 re-enabled real window
+  transparency believing only the legacy render path ghosts; the field report
+  shows the modern DMABUF path ghosts too on Wayland + WebKitGTK 2.52
+  (tauri-apps/tauri#14924). Linux is opaque again (`tauri.linux.conf.json` is
+  back, mirroring the 0.6.3 window geometry) with `supports_transparency()` false,
+  so companion mode uses the simulated wallpaper backdrop — this time WITHOUT the
+  legacy-renderer forcing that made that combination look broken in 0.6.1.
+  Windows/macOS keep real transparency.
+
 ## 0.6.3 — 2026-07-15
 
 ### Fixed

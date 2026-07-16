@@ -2,6 +2,77 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.6.3 — 2026-07-15
+
+### Fixed
+- **Tiles no longer overlap themselves.** The grid used bare `1fr` tracks (which
+  never shrink below content) and fixed-size gauges, so any tile whose stack was
+  taller than its row — Storage with its four-line foot being the worst — spilled
+  its ring over the title and its icon over the text. Tracks are now
+  `minmax(0, 1fr)`, every gauge/icon graphic is flex-shrinkable, and all rings share
+  one size cap (5.5rem) so Memory/Storage/CPU/Volume rings match instead of the
+  biggest-footed tile getting the smallest ring. Tiles also clip as a last resort —
+  content can never bleed into a neighbor again.
+- **Storage tile restructured.** The "X GB used of Y GB" detail moved under the
+  drive icon (left of the ring) and the "tap the circle…" hint line moved into the
+  tile's "?" help popup, so the foot is back to status + button. The ring keeps a
+  proper size at every scale step.
+- **About/settings panel no longer squishes.** The three settings columns now
+  reflow (`auto-fit`) in narrow windows — notably Companion mode's 880px window —
+  instead of crushing; selects are width-capped (their longest option no longer
+  drags them over the neighboring column); the header action buttons wrap; the long
+  Companion-mode checkbox label is now a short label plus a small note line.
+- **Windows: the ghost "Win95" title bar on the transparent window is gone.**
+  Undecorated windows get their DWM drop shadow via real frame styles (caption +
+  sizing border); with a transparent webview that frame showed through — fully
+  visible at high transparency and flashing during every window move. `shadow` is
+  now `false` (the frame styles are never added). Costs the decorative drop shadow
+  on Windows; Linux never had one.
+- **"Invisible" is now actually invisible.** `color-scheme: dark` sat on `:root`,
+  and both WebView2 and WebKitGTK paint the root color-scheme's canvas color behind
+  a transparent page — the residual tint on Windows *and* Linux. The declaration
+  moved to form controls + modals (dark dropdowns/pickers keep working); the page
+  canvas is now truly transparent.
+- **Companion background steps respaced.** The old scale bottomed out at 0.4 before
+  jumping to 0, so "Very clear" still read as a heavy tint. New steps: 1 / 0.7 /
+  0.45 / 0.25 / 0.1 / 0; values saved under the old scale snap to the closest step
+  (unit-tested in `tests/opacity.test.mjs`).
+- **Scrollable popups (What's New, About) use a slim, arrowless scrollbar.** The
+  native bar painted a square gutter with arrow buttons over the card's rounded
+  right edge; the new inset thumb keeps both corners round.
+- **Minimizing no longer makes momPanel reopen invisible.** Windows "moves" a
+  minimized window to (-32000, -32000) and `WindowEvent::Moved` reports it; the
+  remember-my-position feature saved that spot, so the next launch restored the
+  panel entirely off-screen. Parking coordinates are now rejected when saving AND
+  when restoring, which also heals configs already poisoned by the old behavior
+  (found live during 0.6.3 verification — the panel genuinely vanished).
+
+### Added
+- **What's New history.** The popup now pages through every past release's notes
+  via Older/Newer links (entries were always kept in `changelog.js`; only the
+  latest was ever shown). Older entries get a 🕰️ header so they read as history,
+  not a fresh update. Navigation helper unit-tested in `tests/changelog.test.mjs`.
+- **Companion mode: the controls gear docks under the "All is well" card** instead
+  of floating alone in the window corner — over a see-through sky the lone corner
+  gear looked detached from the panel. Classic grid keeps the corner placement.
+- **Companion mode: "Make both sections the same height"** (About → General): the
+  health card stretches to the hero section's height (rows spread evenly) so the
+  two sides read as one congruent layout. Off by default; config + partial-merge
+  unit-tested.
+- **Companion mode: solid readability panels.** Two new About → General toggles
+  draw an opaque, tile-colored panel behind the time/weather section and/or the
+  "All is well" card, so a busy wallpaper showing through a clear sky can't fight
+  the text. Applied live, off by default (`companion_solid_hero` /
+  `companion_solid_health`, round-trip unit-tested).
+
+### Changed
+- **Window is taller: 1100×760 (was 1100×680).** 680 gave each grid row ~200px
+  against ~300px of Storage-tile content — the original sin behind the overlap. On
+  screens too short for a step, the existing fit logic shrinks window + font
+  together, so small laptops still get the whole panel.
+- Rewrote the stale Linux render-path comment in `lib.rs` that still described
+  0.6.1's opaque-window setup and a `tauri.linux.conf.json` that no longer exists.
+
 ## 0.6.2 — 2026-07-14
 
 ### Fixed

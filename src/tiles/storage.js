@@ -37,17 +37,19 @@ function draw(el, data) {
 
   el.innerHTML = tile({
     title: "Storage",
+    // Icon + GB detail stacked on the left, ring on the right. The detail lives in
+    // the graphic (not the foot) so the foot stays two items — status + button —
+    // and the ring keeps the same size as the other tiles' rings. The tap-to-flip
+    // affordance is explained in this tile's "?" help popup.
     graphic:
-      `<div class="gauge-row">${hddIcon()}` +
+      `<div class="gauge-row">` +
+      `<div class="storage-side">${hddIcon()}` +
+      `<div class="storage-detail">${detail}</div></div>` +
       `<div class="gauge-fixed storage-gauge" role="button" tabindex="0" ` +
-      `title="Tap to switch between full and free">` +
+      `aria-label="Show ${isFull ? "free space" : "how full it is"} instead">` +
       // ring fills by the displayed percent, but is always colored by how FULL it is
       `${arcGauge(displayPct, displayPct + "%", modeLabel, usedPct)}</div></div>`,
     foot:
-      `<div class="storage-detail">${detail}</div>` +
-      // The flip affordance was invisible (title tooltips don't exist for this
-      // user) — say it in words, and say what tapping will show next.
-      `<div class="btn-note">tap the circle to show ${isFull ? "free space" : "how full it is"}</div>` +
       `<div class="tile-status">${storageMessage(used_percent)}</div>` +
       `<button class="tile-btn" type="button">Open storage settings</button>`,
   });

@@ -1,6 +1,20 @@
 // Plain-English, kind "what's new" notes shown inside the app after an update, keyed
 // by version. (The GitHub release notes in CHANGELOG.md can be more technical.)
 export const CHANGELOG = {
+  "0.6.3": {
+    changes: [
+      "📐 Tiles finally have elbow room: the window is a little taller, the gauges size themselves to fit, and nothing squishes or overlaps anymore — the Storage tile especially is back to looking tidy.",
+      "🗂️ The About window behaves in small windows too: settings columns rearrange themselves instead of crushing together, and drop-downs stay inside their column.",
+      "🫥 See-through Companion mode is truly see-through now — the faint leftover tint is gone on both Linux and Windows, and “Very clear” really is very clear.",
+      "🪟 On Windows, the odd old-fashioned title bar that peeked through a see-through panel (or flashed while moving it) is gone for good.",
+      "📌 Fixed a sneaky bug where minimizing momPanel could make it reopen invisible — parked off the edge of the screen — the next time it started.",
+      "🛡️ New in Companion mode: turn on a solid panel behind the clock &amp; weather, or behind the “All is well” card, so a busy wallpaper can't make them hard to read. Both live in the About window.",
+      "⚙️ In Companion mode the little settings gear now sits right under the “All is well” card instead of floating off in the corner by itself.",
+      "📏 New option: make the “All is well” side the same height as the clock-and-weather side, for a tidier, more even look (About window).",
+      "📜 Popups like this one now scroll with a slim rounded bar instead of a boxy scrollbar with arrows.",
+      "🕰️ Curious what changed before? This popup now has “Older updates” and “Newer updates” links at the bottom, so you can flip through every past update note.",
+    ],
+  },
   "0.6.2": {
     changes: [
       "🫥 Companion mode's see-through background now works properly on Linux — “Invisible” really is invisible, showing whatever is behind the panel instead of a black box.",
@@ -91,4 +105,20 @@ export const CHANGELOG = {
 // Returns the entry for a version, or null if we don't have notes for it.
 export function changesFor(version) {
   return CHANGELOG[version] || null;
+}
+
+// Every version with notes, newest first (the CHANGELOG object's insertion order).
+export function versionsNewestFirst() {
+  return Object.keys(CHANGELOG);
+}
+
+// The entries to step to from `version` in the What's New history: `older` is the
+// next entry further back, `newer` the next one forward; null at either end. An
+// unknown version (e.g. a dev build with no notes yet) still offers the newest
+// recorded entry as `older`, so the history stays reachable.
+export function neighbors(version) {
+  const list = versionsNewestFirst();
+  const i = list.indexOf(version);
+  if (i === -1) return { older: list[0] ?? null, newer: null };
+  return { older: list[i + 1] ?? null, newer: i > 0 ? list[i - 1] : null };
 }

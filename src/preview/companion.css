@@ -175,6 +175,50 @@ body.companion[data-sky="night"]::before {
   align-self: flex-start;
 }
 
+/* Solid readability panels (About → General): an opaque, tile-colored backing for
+   the hero and/or the health card, so a busy wallpaper showing through a clear sky
+   can't fight the text. Opt-in per section; the sky opacity stays independent. */
+.comp-hero.comp-solid,
+.comp-health.comp-solid {
+  background: var(--tile);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.comp-hero.comp-solid {
+  border-radius: 22px;
+  padding: 1.2rem 1.5rem;
+  align-self: center;
+}
+
+/* ---- Right column: health card + the docked controls gear ---- */
+.comp-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-self: center;
+  min-width: 0;
+}
+/* In companion the floating corner controls dock right under the health card —
+   a lone gear in the window corner looks lost over a see-through sky. */
+body.companion .comp-side .scale-control {
+  position: static;
+  align-self: flex-end;
+}
+
+/* Same-height panels (About → General): the first grid row sizes to its tallest
+   side (the hero) and the health card stretches to match, so the two sections
+   read as one congruent layout. The row pair is centered in the leftover space. */
+.comp.comp-match {
+  grid-template-rows: minmax(0, auto) auto;
+  align-content: center;
+}
+.comp.comp-match .comp-side {
+  align-self: stretch;
+}
+.comp.comp-match .comp-health {
+  flex: 1 1 auto;
+  justify-content: space-between; /* spread the rows across the taller card */
+}
+
 /* ---- Health card: one glance says whether anything needs attention ---- */
 .comp-health {
   background: rgba(255, 255, 255, 0.045);
@@ -184,7 +228,6 @@ body.companion[data-sky="night"]::before {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  align-self: center;
   min-width: 0;
 }
 .comp-health-head {
@@ -266,8 +309,6 @@ body.companion[data-sky="night"]::before {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
-  /* keep clear of the controls gear parked in the bottom-right corner */
-  padding-right: 2.8rem;
   overflow: hidden;
   max-height: 0;
   margin-top: 0;

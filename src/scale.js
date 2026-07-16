@@ -8,9 +8,12 @@ import { getConfig, setConfig } from "./api.js";
 import { openInfo } from "./info.js";
 
 const STEPS = ["normal", "big", "biggest"];
-// Base window size at scale "normal". Companion mode shows less at once, so it
-// asks for a smaller canvas via setPanelBase() before the first resize.
-const BASE = { w: 1100, h: 680 };
+// Base window size at scale "normal" (must match tauri.conf.json). 760 tall gives
+// the ten-tile grid the height its content actually needs; on screens too short for
+// a step, fittedFactor() shrinks the window and font together, so nothing overlaps.
+// Companion mode shows less at once, so it asks for a smaller canvas via
+// setPanelBase() before the first resize.
+const BASE = { w: 1100, h: 760 };
 const FACTORS = { normal: 1, big: 19 / 16, biggest: 22 / 16 };
 
 export function setPanelBase(w, h) {

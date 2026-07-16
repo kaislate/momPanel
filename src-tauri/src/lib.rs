@@ -72,6 +72,38 @@ mod alert_cfg_tests {
 }
 
 #[cfg(test)]
+mod patch_tests {
+    use super::apply_patch;
+    use crate::config::AppConfig;
+
+    #[test]
+    fn companion_solid_panels_patch_applies() {
+        let mut c = AppConfig::default();
+        let patch = serde_json::json!({
+            "companion_solid_hero": true,
+            "companion_solid_health": true
+        });
+        apply_patch(&mut c, &patch).unwrap();
+        assert!(c.companion_solid_hero);
+        assert!(c.companion_solid_health);
+        // And back off again — the merge honors explicit false too.
+        let patch = serde_json::json!({ "companion_solid_hero": false });
+        apply_patch(&mut c, &patch).unwrap();
+        assert!(!c.companion_solid_hero);
+        assert!(c.companion_solid_health); // untouched key preserved
+    }
+
+    #[test]
+    fn companion_match_heights_patch_applies() {
+        let mut c = AppConfig::default();
+        apply_patch(&mut c, &serde_json::json!({ "companion_match_heights": true })).unwrap();
+        assert!(c.companion_match_heights);
+        apply_patch(&mut c, &serde_json::json!({ "companion_match_heights": false })).unwrap();
+        assert!(!c.companion_match_heights);
+    }
+}
+
+#[cfg(test)]
 mod theme_cfg_tests {
     use super::valid_preset;
     #[test]
@@ -158,6 +190,38 @@ impl PosThrottle {
     fn new() -> Self {
         Self { pending: None, last_write: std::time::Instant::now() }
     }
+}
+
+#[cfg(test)]
+mod position_tests {
+    use super::plausible_position;
+
+    #[test]
+    fn minimized_parking_spot_is_rejected() {
+        // Windows parks minimized windows at (-32000, -32000); persisting that spot
+        // makes the panel restore off-screen (invisible app) on the next launch.
+        assert!(!plausible_position(-32000, -32000));
+        assert!(!plausible_position(-32000, 200));
+        assert!(!plausible_position(200, -32000));
+    }
+
+    #[test]
+    fn ordinary_positions_are_kept() {
+        assert!(plausible_position(0, 0));
+        assert!(plausible_position(1298, 60));
+        // Mildly negative is real on multi-monitor setups (a display left of primary).
+        assert!(plausible_position(-1920, -200));
+    }
+}
+
+// Whether a reported outer position is a real on-screen spot worth remembering.
+// Minimizing on Windows "moves" the window to its parking spot (-32000, -32000) and
+// WindowEvent::Moved dutifully reports it; persisting that made the next launch
+// restore the panel off-screen — an invisible app. Mildly negative coordinates are
+// legitimate (monitors left of/above the primary), so only the far-out parking
+// range is rejected.
+fn plausible_position(x: i32, y: i32) -> bool {
+    x > -30000 && y > -30000
 }
 
 // Persist the panel's outer position through the serialized config path.
@@ -279,6 +343,15 @@ fn apply_patch(current: &mut AppConfig, cfg: &serde_json::Value) -> Result<(), S
     if let Some(b) = cfg.get("experimental_ui").and_then(|v| v.as_bool()) {
         current.experimental_ui = b;
     }
+    if let Some(b) = cfg.get("companion_solid_hero").and_then(|v| v.as_bool()) {
+        current.companion_solid_hero = b;
+    }
+    if let Some(b) = cfg.get("companion_solid_health").and_then(|v| v.as_bool()) {
+        current.companion_solid_health = b;
+    }
+    if let Some(b) = cfg.get("companion_match_heights").and_then(|v| v.as_bool()) {
+        current.companion_match_heights = b;
+    }
     if let Some(o) = cfg.get("companion_bg_opacity").and_then(|v| v.as_f64()) {
         // Allow a fully-invisible sky (0.0): the frontend now draws a real backdrop
         // behind it — the actual desktop through a transparent window on Win/mac, or a
@@ -380,20 +453,19 @@ fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Work around a WebKitGTK DMABUF rendering bug that causes glitchy rendering and
-    // flaky mouse input on many newer Wayland/Mesa setups (common with AppImages).
-    //
-    // Related Linux fix (v0.6.1): the main window is NOT transparent on Linux —
-    // tauri.linux.conf.json drops `transparent: true` (kept on Win/mac). WebKitGTK's
-    // transparent compositing leaves ghost/stale frames in transparent regions and
-    // eats pointer input on those regions (tauri-apps/tauri#14924, #13157), which broke
-    // buttons on Zorin. Linux instead simulates the see-through look with a wallpaper
-    // backdrop drawn inside the (opaque) webview via desktop_background().
-    // 0.3.1 forced WEBKIT_DISABLE_DMABUF_RENDERER=1 to work around glitchy
-    // rendering/input on 2023-era WebKitGTK. On the current target stack (Zorin 18,
-    // WebKitGTK 2.48+) that legacy render path is the PROBLEM: it can't composite a
-    // transparent window (black instead of see-through) and ghosts stale frames
-    // (tauri#14924). DMABUF is healthy there, so the override is now opt-in only.
+    // Linux rendering history, so nobody re-debugs it from a stale premise:
+    //   - 0.3.1 forced WEBKIT_DISABLE_DMABUF_RENDERER=1 to work around glitchy
+    //     rendering/input on 2023-era WebKitGTK.
+    //   - 0.6.1 kept the Linux window opaque (a tauri.linux.conf.json dropped
+    //     `transparent: true`) because WebKitGTK's LEGACY render path ghosted stale
+    //     frames and ate pointer input in transparent regions (tauri-apps/tauri#14924,
+    //     #13157), breaking buttons on Zorin. See-through was simulated by drawing the
+    //     wallpaper inside the webview (desktop_background()).
+    //   - 0.6.2 (current): tauri.linux.conf.json is GONE — the window is transparent on
+    //     every platform. On the target stack (Zorin 18, WebKitGTK 2.48+) the DMABUF
+    //     path composites transparency correctly; the legacy path is the problem, so
+    //     the DMABUF-disable override below is opt-in only. The wallpaper-backdrop
+    //     fallback still exists behind supports_transparency() as a one-line revert.
     #[cfg(target_os = "linux")]
     if std::env::var_os("MOMPANEL_LEGACY_RENDERER").is_some()
         && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
@@ -465,7 +537,12 @@ pub fn run() {
             // Windows) — Wayland keeps the compositor's placement.
             if let Some(main) = app.get_webview_window("main") {
                 if let (Some(x), Some(y)) = (cfg.window_x, cfg.window_y) {
-                    let _ = main.set_position(tauri::PhysicalPosition::new(x, y));
+                    // Ignore (and thereby heal) a config poisoned by the pre-0.6.3
+                    // bug that saved the minimized parking spot: keep the centered
+                    // default instead of restoring off-screen.
+                    if plausible_position(x, y) {
+                        let _ = main.set_position(tauri::PhysicalPosition::new(x, y));
+                    }
                 }
                 let _ = main.show();
                 let _ = main.set_focus();
@@ -476,6 +553,9 @@ pub fn run() {
                 let h = app.handle().clone();
                 main.on_window_event(move |e| match e {
                     tauri::WindowEvent::Moved(p) => {
+                        if !plausible_position(p.x, p.y) {
+                            return; // minimize parking, not a user move
+                        }
                         let mut st = throttle.lock().unwrap_or_else(|e| e.into_inner());
                         st.pending = Some((p.x, p.y));
                         if st.last_write.elapsed() >= std::time::Duration::from_secs(2) {

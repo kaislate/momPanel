@@ -66,8 +66,11 @@ pub fn open_settings(target: String) -> Result<(), String> {
     trace(&format!("open_settings invoked: {target}"));
     #[cfg(target_os = "linux")]
     {
+        // hostexec: gnome-control-center/gnome-disks are HOST binaries; spawned with
+        // the raw AppImage env they die instantly on bundled-library symbol clashes
+        // (spawn still returns Ok, so this log used to show success for dead buttons).
         let r = match linux_cmd(&target) {
-            Some((cmd, args)) => std::process::Command::new(cmd)
+            Some((cmd, args)) => crate::hostexec::host_command(cmd)
                 .args(&args)
                 .spawn()
                 .map(|_| ())

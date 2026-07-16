@@ -1,6 +1,7 @@
 mod background;
 mod collectors;
 mod config;
+mod hostexec;
 mod memwatch;
 mod notifier;
 mod shortcuts;
@@ -157,14 +158,29 @@ fn unavail() -> serde_json::Value {
     serde_json::json!({ "state": "unavailable" })
 }
 
-/// Whether this platform supports a real transparent window. True everywhere since
-/// 0.6.2: the 0.6.0 Linux ghosting turned out to be the legacy renderer forced by the
-/// old WEBKIT_DISABLE_DMABUF_RENDERER workaround (see run()), not transparency itself.
-/// The frontend keeps a simulated wallpaper-backdrop path for any platform where this
-/// returns false, so flipping this back is a one-line revert if a setup misbehaves.
+/// Whether this platform supports a real transparent window. False on Linux again
+/// as of 0.6.4: 0.6.2 blamed the ghost/stale frames on the legacy render path and
+/// re-enabled real transparency, but the field report from the target Zorin 18.1
+/// machine (Wayland, WebKitGTK 2.52) shows the MODERN path ghosts too — closed
+/// About panels and notification animation trails stay visible through transparent
+/// regions (upstream: tauri-apps/tauri#14924). Linux keeps an opaque window and
+/// simulates see-through with the wallpaper backdrop (desktop_background()); the
+/// webview input, unlike 0.6.1's diagnosis, was never the problem — see hostexec.rs.
 #[tauri::command]
 fn supports_transparency() -> bool {
-    true
+    cfg!(not(target_os = "linux"))
+}
+
+#[cfg(test)]
+mod transparency_tests {
+    use super::supports_transparency;
+
+    #[test]
+    fn linux_is_opaque_other_platforms_transparent() {
+        assert_eq!(supports_transparency(), cfg!(not(target_os = "linux")));
+        #[cfg(target_os = "linux")]
+        assert!(!supports_transparency());
+    }
 }
 
 /// The user's desktop wallpaper as a base64 `data:` URL, or null if it can't be
@@ -383,8 +399,10 @@ fn os_info() -> String {
 #[tauri::command]
 fn open_github() -> Result<(), String> {
     let url = "https://github.com/kaislate/momPanel";
+    // xdg-open is a host shell script chaining into host tools — it needs the same
+    // AppImage env scrub as the settings shortcuts (see hostexec.rs).
     #[cfg(target_os = "linux")]
-    let r = std::process::Command::new("xdg-open").arg(url).spawn();
+    let r = hostexec::host_command("xdg-open").arg(url).spawn();
     #[cfg(target_os = "windows")]
     let r = std::process::Command::new("cmd").args(["/C", "start", "", url]).spawn();
     #[cfg(target_os = "macos")]
@@ -461,11 +479,18 @@ pub fn run() {
     //     frames and ate pointer input in transparent regions (tauri-apps/tauri#14924,
     //     #13157), breaking buttons on Zorin. See-through was simulated by drawing the
     //     wallpaper inside the webview (desktop_background()).
-    //   - 0.6.2 (current): tauri.linux.conf.json is GONE — the window is transparent on
-    //     every platform. On the target stack (Zorin 18, WebKitGTK 2.48+) the DMABUF
-    //     path composites transparency correctly; the legacy path is the problem, so
-    //     the DMABUF-disable override below is opt-in only. The wallpaper-backdrop
-    //     fallback still exists behind supports_transparency() as a one-line revert.
+    //   - 0.6.2: removed tauri.linux.conf.json — window transparent on every platform,
+    //     believing the DMABUF path composites alpha correctly and only the legacy
+    //     path ghosts. The DMABUF-disable override below became opt-in.
+    //   - 0.6.4 (current): the field report from the target machine (Zorin 18.1,
+    //     Wayland, WebKitGTK 2.52) shows the MODERN path ghosts too — stale frames of
+    //     closed panels/notifications persist in transparent regions (tauri#14924).
+    //     tauri.linux.conf.json is BACK (opaque window, no transparent key) and
+    //     supports_transparency() returns false on Linux, so companion mode uses the
+    //     simulated wallpaper backdrop. The renderer override stays opt-in: the modern
+    //     path renders fine; only window ALPHA is broken. The 0.6.1 "transparency eats
+    //     input" half of the diagnosis was wrong — dead buttons were the AppImage env
+    //     poisoning spawned host tools (see hostexec.rs), fixed independently.
     #[cfg(target_os = "linux")]
     if std::env::var_os("MOMPANEL_LEGACY_RENDERER").is_some()
         && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()

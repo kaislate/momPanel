@@ -1,6 +1,12 @@
 // Plain-English, kind "what's new" notes shown inside the app after an update, keyed
 // by version. (The GitHub release notes in CHANGELOG.md can be more technical.)
 export const CHANGELOG = {
+  "0.6.4": {
+    changes: [
+      "🔘 On Linux, the buttons (open printer settings, open storage, and friends) truly work now. We caught the culprit red-handed on the real machine: the app was accidentally lending its own bundled libraries to the settings programs it opened, which made them crash before showing anything. They now launch with a clean slate.",
+      "👻 Fixed the see-through ghosts on Linux — closed windows and notification animations no longer leave trails behind. The panel background is drawn from your wallpaper instead of true see-through there (a Linux graphics bug upstream); Windows and Mac keep the real thing.",
+    ],
+  },
   "0.6.3": {
     changes: [
       "📐 Tiles finally have elbow room: the window is a little taller, the gauges size themselves to fit, and nothing squishes or overlaps anymore — the Storage tile especially is back to looking tidy.",

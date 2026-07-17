@@ -6,9 +6,6 @@ use crate::config::AppConfig;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use tauri::{AppHandle, Emitter, Manager};
 
-#[cfg(target_os = "linux")]
-use std::process::Command;
-
 // Held while an alert's tone/speech thread runs. An alert can re-fire every ~30s, so
 // this skips a fresh play while one is still going instead of stacking overlapping
 // players (and racing the volume raise/restore).
@@ -88,7 +85,7 @@ fn notify_critical(percent: i64, body: &str) {
     // -p prints the assigned id; -r replaces our previous alert so pulses update one
     // tray entry instead of stacking. Capturing the id lets recovery retract it.
     let prev = NOTIFICATION_ID.load(Ordering::Acquire);
-    let out = Command::new("notify-send")
+    let out = crate::hostexec::host_command("notify-send")
         .args([
             "-p",
             "-r", &prev.to_string(),
@@ -113,7 +110,7 @@ pub fn retract_notification() {
     {
         let id = NOTIFICATION_ID.swap(0, Ordering::AcqRel);
         if id != 0 {
-            let _ = Command::new("gdbus")
+            let _ = crate::hostexec::host_command("gdbus")
                 .args([
                     "call", "--session",
                     "--dest", "org.freedesktop.Notifications",
@@ -135,7 +132,7 @@ fn play_tone_with_floor(sound: &str, floor: f32) {
         set_volume(t);
     }
     let path = format!("/usr/share/sounds/freedesktop/stereo/{sound}.oga");
-    let _ = Command::new("canberra-gtk-play").args(["-f", &path]).status();
+    let _ = crate::hostexec::host_command("canberra-gtk-play").args(["-f", &path]).status();
     if let Some(o) = orig {
         set_volume(o);
     }
@@ -145,7 +142,7 @@ fn play_tone_with_floor(sound: &str, floor: f32) {
 fn current_volume() -> Option<f32> {
     // Pin the locale: the fraction is parsed positionally after "Volume:", which wpctl
     // would otherwise translate.
-    let out = Command::new("wpctl")
+    let out = crate::hostexec::host_command("wpctl")
         .env("LC_ALL", "C")
         .env("LANG", "C")
         .args(["get-volume", "@DEFAULT_AUDIO_SINK@"])
@@ -158,7 +155,7 @@ fn current_volume() -> Option<f32> {
 
 #[cfg(target_os = "linux")]
 fn set_volume(v: f32) {
-    let _ = Command::new("wpctl")
+    let _ = crate::hostexec::host_command("wpctl")
         .env("LC_ALL", "C")
         .env("LANG", "C")
         .args(["set-volume", "@DEFAULT_AUDIO_SINK@", &format!("{v:.2}")])
@@ -167,7 +164,7 @@ fn set_volume(v: f32) {
 
 #[cfg(target_os = "linux")]
 fn speak(text: &str) {
-    let _ = Command::new("spd-say").args(["-w", text]).status();
+    let _ = crate::hostexec::host_command("spd-say").args(["-w", text]).status();
 }
 
 // Non-Linux stubs (Windows notification/audio are a follow-up).

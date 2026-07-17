@@ -1,6 +1,7 @@
 mod background;
 mod collectors;
 mod config;
+mod diag;
 mod hostexec;
 mod memwatch;
 mod notifier;

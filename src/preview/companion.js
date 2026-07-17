@@ -573,9 +573,12 @@ export async function initCompanion() {
   // User-tunable sky opacity (About → General), down to fully invisible.
   let alpha = Math.min(1, Math.max(0, Number(cfg.companion_bg_opacity ?? 1)));
 
-  // Real window transparency ghosts and breaks input on Linux/WebKitGTK, so there
-  // the window stays opaque and "clear" skies reveal a drawn copy of the desktop
-  // wallpaper instead — the desktop, never other windows.
+  // Real window transparency ghosts stale frames on Linux/WebKitGTK, so there the
+  // window stays opaque and "clear" skies reveal a drawn copy of the desktop
+  // wallpaper instead — the desktop, never other windows. body.dataset.backdrop
+  // records what's actually behind the sky ("real" | "wallpaper" | "none") so the
+  // About panel's live opacity control can refuse to reveal a blank canvas.
+  let backdrop = "real";
   if (!(await supportsTransparency())) {
     // Load the wallpaper even at "Solid" so the About dropdown can reveal it live.
     const wall = await desktopBackground();
@@ -584,10 +587,15 @@ export async function initCompanion() {
       desk.className = "comp-desktop";
       desk.style.backgroundImage = `url(${wall})`;
       document.body.prepend(desk);
-    } else if (alpha < 1) {
-      alpha = 1; // nothing to reveal — keep the sky solid rather than paint white
+      backdrop = "wallpaper";
+    } else {
+      backdrop = "none";
+      if (alpha < 1) {
+        alpha = 1; // nothing to reveal — keep the sky solid rather than paint white
+      }
     }
   }
+  document.body.dataset.backdrop = backdrop;
   document.documentElement.style.setProperty("--comp-bg-alpha", String(alpha));
 
   buildSkeleton(document.getElementById("grid"));

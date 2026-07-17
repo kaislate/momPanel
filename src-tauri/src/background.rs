@@ -34,10 +34,26 @@ fn cache() -> &'static Mutex<Option<CacheEntry>> {
 
 /// Resolve the current desktop wallpaper to a `data:<mime>;base64,...` URL, or `None`.
 /// Synchronous (shells out + reads a file); lib.rs wraps this in spawn_blocking so the
-/// IPC worker thread is never stalled.
+/// IPC worker thread is never stalled. Every step traces to wallpaper.log — the
+/// companion backdrop failing is otherwise invisible in the field.
 pub fn resolve() -> Option<String> {
-    let path = wallpaper_path()?;
-    encode_path(&path)
+    let path = match wallpaper_path() {
+        Some(p) => p,
+        None => {
+            crate::diag::trace("wallpaper", "no wallpaper path resolved");
+            return None;
+        }
+    };
+    let r = encode_path(&path);
+    crate::diag::trace(
+        "wallpaper",
+        &format!(
+            "path={} encoded={}",
+            path.display(),
+            r.as_ref().map(|d| format!("{} bytes (data url)", d.len())).unwrap_or_else(|| "FAILED (type/size/read)".into())
+        ),
+    );
+    r
 }
 
 /// Map a file extension to an image MIME the webview can render. Unknown -> None: we
@@ -93,19 +109,28 @@ fn wallpaper_path() -> Option<PathBuf> {
         // target Zorin machine) — only accept a candidate that's actually there, so
         // a stale dark URI falls through to the light wallpaper.
         if let Some(p) = gsettings_uri_path(key) {
-            if p.is_file() {
+            let exists = p.is_file();
+            crate::diag::trace(
+                "wallpaper",
+                &format!("{key} -> {} (exists={exists})", p.display()),
+            );
+            if exists {
                 return Some(p);
             }
+        } else {
+            crate::diag::trace("wallpaper", &format!("{key} -> no usable value"));
         }
     }
     None
 }
 
 /// Run `gsettings get org.gnome.desktop.background <key>` and parse its quoted file URI.
+/// hostexec: with the raw AppImage env, gsettings can't load the dconf GIO module
+/// (bundled-glib symbol clash) and silently answers with SCHEMA DEFAULTS — paths like
+/// adwaita-l.jpg that don't exist on Zorin, so the companion backdrop vanished.
 #[cfg(target_os = "linux")]
 fn gsettings_uri_path(key: &str) -> Option<PathBuf> {
-    use std::process::Command;
-    let out = Command::new("gsettings")
+    let out = crate::hostexec::host_command("gsettings")
         .env("LC_ALL", "C")
         .env("LANG", "C")
         .args(["get", "org.gnome.desktop.background", key])

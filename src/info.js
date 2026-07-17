@@ -240,11 +240,16 @@ export async function openInfo() {
   });
 
   // Companion sky opacity: persist and apply live (the CSS var is only consumed by
-  // companion mode, so this is a harmless no-op in the classic grid).
+  // companion mode, so this is a harmless no-op in the classic grid). When there is
+  // NOTHING behind the sky (no real transparency, no wallpaper backdrop — see
+  // companion.js), keep the sky visually solid: clearing it would just reveal the
+  // webview's blank white canvas. The choice still persists for when a backdrop is
+  // available again.
   root.querySelector("[data-compbg]").addEventListener("change", (e) => {
     const v = Number(e.target.value);
     setConfig({ companion_bg_opacity: v });
-    document.documentElement.style.setProperty("--comp-bg-alpha", String(v));
+    const applied = document.body.dataset.backdrop === "none" ? Math.max(v, 1) : v;
+    document.documentElement.style.setProperty("--comp-bg-alpha", String(applied));
   });
 
   // Live theme editing: apply immediately + persist. Editing a swatch marks it Custom.

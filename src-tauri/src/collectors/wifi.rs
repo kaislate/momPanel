@@ -18,10 +18,9 @@ pub enum WifiData {
 pub fn read() -> WifiData {
     #[cfg(target_os = "linux")]
     {
-        use std::process::Command;
         // Pin the locale: nmcli -t localizes the ACTIVE yes/no field, which parse_nmcli
         // matches literally, so a non-English install would never see an active row.
-        let output = Command::new("nmcli")
+        let output = crate::hostexec::host_command("nmcli")
             .env("LC_ALL", "C")
             .env("LANG", "C")
             .args(["-t", "-f", "ACTIVE,SSID,SIGNAL", "dev", "wifi"])

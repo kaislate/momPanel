@@ -60,10 +60,9 @@ fn connect_ok(port: u16) -> bool {
 
 #[cfg(target_os = "linux")]
 fn nmcli_connectivity() -> Option<bool> {
-    use std::process::Command;
     // Pin the locale: nmcli localizes the connectivity word ("full", etc.) that
     // classify_connectivity matches literally.
-    let output = Command::new("nmcli")
+    let output = crate::hostexec::host_command("nmcli")
         .env("LC_ALL", "C")
         .env("LANG", "C")
         .args(["networking", "connectivity"])

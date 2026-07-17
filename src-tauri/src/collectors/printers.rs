@@ -46,10 +46,9 @@ pub enum PrintersData {
 pub fn read() -> PrintersData {
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     {
-        use std::process::Command;
         // Pin the locale: lpstat's status text is gettext-translated, and parse_lpstat
         // keys off the English words ("printer", "idle", "disabled", ...).
-        let mut data = match Command::new("lpstat")
+        let mut data = match crate::hostexec::host_command("lpstat")
             .env("LC_ALL", "C")
             .env("LANG", "C")
             .arg("-p")
@@ -123,9 +122,8 @@ pub fn read() -> PrintersData {
 /// Returns an empty map on any failure.
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn device_uris() -> std::collections::HashMap<String, String> {
-    use std::process::Command;
     let mut map = std::collections::HashMap::new();
-    if let Ok(out) = Command::new("lpstat")
+    if let Ok(out) = crate::hostexec::host_command("lpstat")
         .env("LC_ALL", "C")
         .env("LANG", "C")
         .arg("-v")
@@ -280,10 +278,9 @@ pub fn parse_lpstat(text: &str) -> PrintersData {
 /// unparseable response all resolve to None so the frontend shows "no data".
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn query_inks(queue: &str) -> Option<Vec<Ink>> {
-    use std::process::Command;
     // LC_ALL=C pins ipptool's output; get-printer-attributes.test is the stock test file
     // that ships with CUPS and is resolved by name. -t = plain text, -v = show values.
-    let out = Command::new("ipptool")
+    let out = crate::hostexec::host_command("ipptool")
         .env("LC_ALL", "C")
         .env("LANG", "C")
         .arg("-tv")

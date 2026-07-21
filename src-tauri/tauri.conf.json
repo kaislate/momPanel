@@ -9,20 +9,7 @@
   "app": {
     "withGlobalTauri": true,
     "macOSPrivateApi": true,
-    "windows": [
-      {
-        "title": "momPanel",
-        "width": 1100,
-        "height": 760,
-        "resizable": true,
-        "decorations": false,
-        "center": true,
-        "visible": false,
-        "dragDropEnabled": false,
-        "transparent": true,
-        "shadow": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost"
     }

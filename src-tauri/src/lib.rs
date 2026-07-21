@@ -185,26 +185,39 @@ fn choose_linux_backend(force_wayland: bool, have_display: bool) -> LinuxBackend
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 static ON_X11: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
 
-/// Whether this platform supports a real transparent window. False on Linux again
-/// as of 0.6.4: 0.6.2 blamed the ghost/stale frames on the legacy render path and
-/// re-enabled real transparency, but the field report from the target Zorin 18.1
-/// machine (Wayland, WebKitGTK 2.52) shows the MODERN path ghosts too — closed
-/// About panels and notification animation trails stay visible through transparent
-/// regions (upstream: tauri-apps/tauri#14924). Linux keeps an opaque window and
-/// simulates see-through with the wallpaper backdrop (desktop_background()); the
-/// webview input, unlike 0.6.1's diagnosis, was never the problem — see hostexec.rs.
+/// Whether the OS window is really transparent. Always true on Win/mac. On Linux it
+/// depends on the runtime backend: WebKitGTK ghosts window alpha under Wayland
+/// (tauri#14924), so we only run transparent when we routed onto X11/Xwayland; the
+/// Wayland fallback keeps an opaque window and simulates see-through with the
+/// wallpaper backdrop (see background.rs). Drives both the window builder and the
+/// frontend's real-vs-simulated backdrop choice (companion.js).
+fn window_should_be_transparent() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        ON_X11.get().copied().unwrap_or(false)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        true
+    }
+}
+
 #[tauri::command]
 fn supports_transparency() -> bool {
-    cfg!(not(target_os = "linux"))
+    window_should_be_transparent()
 }
 
 #[cfg(test)]
 mod transparency_tests {
     use super::supports_transparency;
 
+    // Win/mac always have a real transparent window. On Linux transparency is a
+    // runtime call (true only on X11); ON_X11 is unset under `cargo test`, so the
+    // Linux build reports opaque here — the honest default when no backend was chosen.
     #[test]
-    fn linux_is_opaque_other_platforms_transparent() {
-        assert_eq!(supports_transparency(), cfg!(not(target_os = "linux")));
+    fn non_linux_is_transparent_linux_defaults_opaque() {
+        #[cfg(not(target_os = "linux"))]
+        assert!(supports_transparency());
         #[cfg(target_os = "linux")]
         assert!(!supports_transparency());
     }
@@ -574,6 +587,23 @@ pub fn run() {
             None,
         ))
         .setup(|app| {
+            // The main window is built here (not in tauri.conf.json) so its
+            // transparency can be a RUNTIME decision: transparent on Win/mac and on
+            // Linux-X11, opaque on the Linux/Wayland fallback (WebKitGTK alpha ghosts
+            // there — tauri#14924). Mirrors the memwarn builder below. `visible(false)`;
+            // the restore block further down positions it and then shows it.
+            WebviewWindowBuilder::new(app.handle(), "main", WebviewUrl::App("index.html".into()))
+                .title("momPanel")
+                .inner_size(1100.0, 760.0)
+                .resizable(true)
+                .decorations(false)
+                .center()
+                .visible(false)
+                .disable_drag_drop_handler()
+                .shadow(false)
+                .transparent(window_should_be_transparent())
+                .build()?;
+
             use tauri_plugin_autostart::ManagerExt;
             // Enable autostart ONCE on first run; after that respect the user's choice
             // (via the "Start at login" toggle) instead of forcing it on every launch.

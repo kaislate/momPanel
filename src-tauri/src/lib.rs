@@ -148,13 +148,18 @@ fn open_main_window(app: tauri::AppHandle) {
     }
 }
 
-/// Pin the main window below all other windows (companion mode) or release it back to
-/// normal stacking (classic mode). No-op on Wayland — the compositor owns stacking —
-/// and effective on X11/Windows/macOS. The frontend calls this on mode boot; a webview
-/// reload keeps the native window, so classic MUST clear the flag a prior companion
-/// session set.
+/// Pin the main window below all other windows (companion mode) or release it (classic).
+/// LINUX: disabled. On GNOME/Mutter, `_NET_WM_STATE_BELOW` makes the window
+/// non-interactive — it stops receiving clicks AND can't be moved with Super+drag —
+/// and it's a no-op on Wayland regardless. So on Linux the companion window stays a
+/// normal, interactive window (verified on Zorin: keep-below killed all input). Still
+/// effective on Windows/macOS, where keep-below behaves correctly. The frontend calls
+/// this on mode boot; a webview reload keeps the native window, so classic MUST clear
+/// the flag a prior companion session set (on the platforms where it applies).
 #[tauri::command]
+#[cfg_attr(target_os = "linux", allow(unused_variables))]
 fn set_below(app: tauri::AppHandle, below: bool) {
+    #[cfg(not(target_os = "linux"))]
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.set_always_on_bottom(below);
     }

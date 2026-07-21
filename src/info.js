@@ -103,6 +103,10 @@ export async function openInfo() {
     // through a clear sky. Applied live — no refresh needed.
     check("data-solidhero", cfg.companion_solid_hero, "Solid panel behind time &amp; weather") +
     check("data-solidhealth", cfg.companion_solid_health, "Solid panel behind &ldquo;All is well&rdquo;") +
+    // Frosted glass: a blurred pane of the wallpaper behind the panels and/or as
+    // the whole background. Applied live — no refresh needed.
+    check("data-frostpanels", cfg.companion_frosted_panels, "Frosted glass panels") +
+    check("data-frostbg", cfg.companion_frosted_bg, "Frosted glass background") +
     check("data-matchheights", cfg.companion_match_heights, "Make both sections the same height") +
     `</section>` +
     // --- Column 2: Memory alerts ---
@@ -233,6 +237,17 @@ export async function openInfo() {
   root.querySelector("[data-solidhealth]").addEventListener("change", (e) => {
     setConfig({ companion_solid_health: e.target.checked });
     document.querySelector(".comp-health")?.classList.toggle("comp-solid", e.target.checked);
+  });
+  // Frosted glass: persist and apply live (companion.js already exposed the
+  // wallpaper as --comp-wall; in the classic grid these classes style nothing).
+  root.querySelector("[data-frostpanels]").addEventListener("change", (e) => {
+    setConfig({ companion_frosted_panels: e.target.checked });
+    document.querySelector(".comp-hero")?.classList.toggle("comp-frost", e.target.checked);
+    document.querySelector(".comp-health")?.classList.toggle("comp-frost", e.target.checked);
+  });
+  root.querySelector("[data-frostbg]").addEventListener("change", (e) => {
+    setConfig({ companion_frosted_bg: e.target.checked });
+    document.body.classList.toggle("comp-frost-bg", e.target.checked);
   });
   root.querySelector("[data-matchheights]").addEventListener("change", (e) => {
     setConfig({ companion_match_heights: e.target.checked });

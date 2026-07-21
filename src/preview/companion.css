@@ -189,6 +189,69 @@ body.companion[data-sky="night"]::before {
   align-self: center;
 }
 
+/* Frosted-glass panels (About → General): the hero and health card become panes of
+   glass — a blurred slice of the desktop wallpaper under a dark tint, a hairline
+   border, and a top highlight for the glass edge. backdrop-filter can't blur the
+   real desktop composited behind a transparent window (there's nothing in-page to
+   sample), so the glass blurs the in-page wallpaper copy (--comp-wall, set by
+   companion.js) instead; background-attachment: fixed sizes that copy to the
+   viewport so each pane samples roughly the wallpaper under its own footprint.
+   With no wallpaper available the tint alone remains — still readable, just less
+   glassy. A solid panel wins over frost: opaque is the readability trump card. */
+.comp-hero.comp-frost:not(.comp-solid),
+.comp-health.comp-frost:not(.comp-solid) {
+  position: relative;
+  isolation: isolate; /* keep the z-index:-1 glass layer inside the panel */
+  overflow: hidden; /* clip the blur bleed to the rounded corners */
+  background: rgba(11, 15, 26, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 12px 36px rgba(0, 0, 0, 0.28);
+}
+.comp-hero.comp-frost {
+  /* Same footprint the solid option gives the hero (no-op when both are on). */
+  border-radius: 22px;
+  padding: 1.2rem 1.5rem;
+  align-self: center;
+}
+.comp-hero.comp-frost:not(.comp-solid)::before,
+.comp-health.comp-frost:not(.comp-solid)::before {
+  content: "";
+  position: absolute;
+  inset: -40px; /* bleed past the edges so the blur never fades to transparent */
+  z-index: -1;
+  background-image: var(--comp-wall, none);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  filter: blur(22px) saturate(1.15);
+}
+
+/* Frosted-glass background (About → General): the whole sky becomes one pane of
+   glass — the blurred wallpaper at partial opacity (where the window is truly
+   transparent the live desktop still breathes through the remaining ~15%), with
+   the time-of-day sky reduced to a translucent tint on top so the mood survives.
+   The About opacity slider keeps working: it now scales that tint. Skipped when
+   there is nothing behind the sky (data-backdrop="none") — thinning the sky there
+   would only reveal the webview's white canvas. */
+body.companion.comp-frost-bg:not([data-backdrop="none"])::after {
+  content: "";
+  position: fixed;
+  inset: -60px; /* bleed so the blur never fades to transparent at the edges */
+  /* -2 with .comp-desktop (generated content paints above it there), below the
+     z-index:-1 sky tint. */
+  z-index: -2;
+  background-image: var(--comp-wall, none);
+  background-size: cover;
+  background-position: center;
+  opacity: 0.85;
+  filter: blur(38px) saturate(1.1);
+}
+body.companion.comp-frost-bg:not([data-backdrop="none"])::before {
+  opacity: calc(var(--comp-bg-alpha, 1) * 0.45);
+}
+
 /* ---- Right column: health card + the docked controls gear ---- */
 .comp-side {
   display: flex;
@@ -319,15 +382,20 @@ body.companion .comp-side .scale-control {
   max-height: 12rem;
   margin-top: 1rem;
 }
+/* Attention cards are always OPAQUE: when the panel is asking mom to do something,
+   the message must never fight a desktop showing through a clear sky. The solid
+   tile color + a soft shadow lift the card off whatever is behind it. */
 .comp-card {
   flex: 1 1 20rem;
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--tile);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-left: 5px solid var(--warn);
   border-radius: 18px;
   padding: 1rem 1.2rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   animation: comp-card-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .comp-card.bad {

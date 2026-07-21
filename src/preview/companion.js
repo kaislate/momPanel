@@ -573,6 +573,16 @@ export async function initCompanion() {
   // User-tunable sky opacity (About → General), down to fully invisible.
   let alpha = Math.min(1, Math.max(0, Number(cfg.companion_bg_opacity ?? 1)));
 
+  // The desktop wallpaper, fetched on every platform: blurred copies of it power
+  // the frosted-glass options (CSS var consumed by .comp-frost / .comp-frost-bg —
+  // backdrop-filter can't blur the real desktop composited behind a transparent
+  // window, so the glass blurs this in-page copy instead). Loaded even with every
+  // option off so the About toggles can frost live.
+  const wall = await desktopBackground();
+  if (wall) {
+    document.documentElement.style.setProperty("--comp-wall", `url(${wall})`);
+  }
+
   // Real window transparency ghosts stale frames on Linux/WebKitGTK, so there the
   // window stays opaque and "clear" skies reveal a drawn copy of the desktop
   // wallpaper instead — the desktop, never other windows. body.dataset.backdrop
@@ -580,8 +590,6 @@ export async function initCompanion() {
   // About panel's live opacity control can refuse to reveal a blank canvas.
   let backdrop = "real";
   if (!(await supportsTransparency())) {
-    // Load the wallpaper even at "Solid" so the About dropdown can reveal it live.
-    const wall = await desktopBackground();
     if (wall) {
       const desk = document.createElement("div");
       desk.className = "comp-desktop";
@@ -602,6 +610,10 @@ export async function initCompanion() {
   // Solid readability panels behind the hero and/or health card (About → General).
   document.querySelector(".comp-hero")?.classList.toggle("comp-solid", !!cfg.companion_solid_hero);
   document.querySelector(".comp-health")?.classList.toggle("comp-solid", !!cfg.companion_solid_health);
+  // Frosted-glass panes behind both sections, and/or a frosted sky (About → General).
+  document.querySelector(".comp-hero")?.classList.toggle("comp-frost", !!cfg.companion_frosted_panels);
+  document.querySelector(".comp-health")?.classList.toggle("comp-frost", !!cfg.companion_frosted_panels);
+  document.body.classList.toggle("comp-frost-bg", !!cfg.companion_frosted_bg);
   // Same-height panels: the health card stretches to the hero section's height.
   document.querySelector(".comp")?.classList.toggle("comp-match", !!cfg.companion_match_heights);
   initPeek();

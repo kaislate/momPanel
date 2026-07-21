@@ -189,6 +189,15 @@ pub struct AppConfig {
     /// so the two sides read as one congruent layout.
     #[serde(default)]
     pub companion_match_heights: bool,
+    /// Companion mode: frosted-glass panes behind the hero and health sections — a
+    /// blurred slice of the desktop wallpaper under a translucent tint, while the
+    /// surrounding sky stays clear.
+    #[serde(default)]
+    pub companion_frosted_panels: bool,
+    /// Companion mode: frosted-glass background — the whole sky becomes a blurred,
+    /// partially-transparent pane of the wallpaper instead of fully clear or solid.
+    #[serde(default)]
+    pub companion_frosted_bg: bool,
 }
 
 fn default_companion_bg_opacity() -> f64 {
@@ -227,6 +236,8 @@ impl Default for AppConfig {
             companion_solid_hero: false,
             companion_solid_health: false,
             companion_match_heights: false,
+            companion_frosted_panels: false,
+            companion_frosted_bg: false,
         }
     }
 }
@@ -373,6 +384,24 @@ mod tests {
         let back: AppConfig = serde_json::from_str(&s).unwrap();
         assert!(back.companion_solid_hero);
         assert!(back.companion_solid_health);
+    }
+
+    #[test]
+    fn companion_frosted_default_off_and_round_trip() {
+        // Off by default, absent from old configs, and survive a save/load cycle.
+        let c = AppConfig::default();
+        assert!(!c.companion_frosted_panels);
+        assert!(!c.companion_frosted_bg);
+        let old: AppConfig = serde_json::from_str(r#"{"zip":"90210"}"#).unwrap();
+        assert!(!old.companion_frosted_panels);
+        assert!(!old.companion_frosted_bg);
+        let mut c = AppConfig::default();
+        c.companion_frosted_panels = true;
+        c.companion_frosted_bg = true;
+        let s = serde_json::to_string(&c).unwrap();
+        let back: AppConfig = serde_json::from_str(&s).unwrap();
+        assert!(back.companion_frosted_panels);
+        assert!(back.companion_frosted_bg);
     }
 
     #[test]

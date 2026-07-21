@@ -134,6 +134,11 @@ fn dismiss_mem_warn(app: tauri::AppHandle) {
 #[tauri::command]
 fn open_main_window(app: tauri::AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
+        // A memory escalation must surface the panel even in companion mode, where it's
+        // pinned below other windows (set_below). Release the below-pin first, otherwise
+        // on X11 the persistent _NET_WM_STATE_BELOW keeps the panel behind an occluding
+        // window and set_focus() can't raise it. The next companion (re)load re-pins it.
+        let _ = w.set_always_on_bottom(false);
         let _ = w.show();
         let _ = w.unminimize();
         let _ = w.set_focus();

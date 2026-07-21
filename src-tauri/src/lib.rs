@@ -159,6 +159,32 @@ fn unavail() -> serde_json::Value {
     serde_json::json!({ "state": "unavailable" })
 }
 
+/// Which display backend the Linux build should use. Decided once at startup.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[derive(PartialEq, Eq, Debug)]
+enum LinuxBackend {
+    X11,
+    Wayland,
+}
+
+/// Pure backend decision (unit-tested on every platform). Prefer X11/Xwayland so we
+/// get real window alpha + stacking control, but only when a display is actually
+/// reachable — forcing GDK_BACKEND=x11 with no X server makes GTK fail to open a
+/// display and the app won't start. `MOMPANEL_FORCE_WAYLAND` is the escape hatch.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn choose_linux_backend(force_wayland: bool, have_display: bool) -> LinuxBackend {
+    if !force_wayland && have_display {
+        LinuxBackend::X11
+    } else {
+        LinuxBackend::Wayland
+    }
+}
+
+/// Whether the Linux build ended up on X11/Xwayland. Set once in `run()`; read by
+/// `supports_transparency()` and the main-window builder. Never set on non-Linux.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+static ON_X11: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
 /// Whether this platform supports a real transparent window. False on Linux again
 /// as of 0.6.4: 0.6.2 blamed the ghost/stale frames on the legacy render path and
 /// re-enabled real transparency, but the field report from the target Zorin 18.1
@@ -181,6 +207,21 @@ mod transparency_tests {
         assert_eq!(supports_transparency(), cfg!(not(target_os = "linux")));
         #[cfg(target_os = "linux")]
         assert!(!supports_transparency());
+    }
+}
+
+#[cfg(test)]
+mod backend_tests {
+    use super::{choose_linux_backend, LinuxBackend};
+
+    #[test]
+    fn x11_only_when_display_present_and_wayland_not_forced() {
+        assert_eq!(choose_linux_backend(false, true), LinuxBackend::X11);
+        // No X server/Xwayland reachable -> must stay Wayland (else GTK can't open a display).
+        assert_eq!(choose_linux_backend(false, false), LinuxBackend::Wayland);
+        // Explicit escape hatch always wins, even with a display available.
+        assert_eq!(choose_linux_backend(true, true), LinuxBackend::Wayland);
+        assert_eq!(choose_linux_backend(true, false), LinuxBackend::Wayland);
     }
 }
 
@@ -497,6 +538,21 @@ pub fn run() {
         && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
     {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
+    // Prefer X11/Xwayland on Linux: WebKitGTK ghosts window alpha under Wayland
+    // (tauri#14924) and Wayland forbids client-controlled stacking. Xwayland runs
+    // inside the user's normal Wayland session, so this needs no Xorg login. Falls
+    // back to Wayland (opaque + wallpaper sim) if forced or if no display is reachable.
+    #[cfg(target_os = "linux")]
+    {
+        let force_wayland = std::env::var_os("MOMPANEL_FORCE_WAYLAND").is_some();
+        let have_display = std::env::var_os("DISPLAY").is_some();
+        let on_x11 = choose_linux_backend(force_wayland, have_display) == LinuxBackend::X11;
+        if on_x11 {
+            std::env::set_var("GDK_BACKEND", "x11");
+        }
+        let _ = ON_X11.set(on_x11);
     }
 
     tauri::Builder::default()

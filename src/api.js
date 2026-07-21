@@ -108,14 +108,25 @@ export async function checkUpdates() {
   }
 }
 
-// Whether the OS window is really transparent (Windows/mac). On Linux the window
-// stays opaque (WebKitGTK transparency ghosts and breaks input), so companion mode
-// simulates see-through by drawing the desktop wallpaper as its backdrop.
+// Whether the OS window is really transparent. Always true on Windows/mac; on Linux
+// true only when the app routed onto X11/Xwayland — otherwise the window stays opaque
+// (WebKitGTK ghosts alpha under Wayland) and companion mode simulates see-through by
+// drawing the desktop wallpaper as its backdrop.
 export async function supportsTransparency() {
   try {
     return await invoke("supports_transparency");
   } catch {
     return false;
+  }
+}
+
+// Pin the window below other apps (companion mode) or release it (classic mode).
+// No-op on Linux/Wayland; effective on X11/Windows/mac.
+export async function setBelow(below) {
+  try {
+    return await invoke("set_below", { below });
+  } catch {
+    return null;
   }
 }
 

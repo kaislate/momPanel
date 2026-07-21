@@ -143,6 +143,18 @@ fn open_main_window(app: tauri::AppHandle) {
     }
 }
 
+/// Pin the main window below all other windows (companion mode) or release it back to
+/// normal stacking (classic mode). No-op on Wayland — the compositor owns stacking —
+/// and effective on X11/Windows/macOS. The frontend calls this on mode boot; a webview
+/// reload keeps the native window, so classic MUST clear the flag a prior companion
+/// session set.
+#[tauri::command]
+fn set_below(app: tauri::AppHandle, below: bool) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.set_always_on_bottom(below);
+    }
+}
+
 #[tauri::command]
 async fn read_weather(zip: String) -> serde_json::Value {
     if !is_valid_zip(&zip) {
@@ -708,6 +720,7 @@ pub fn run() {
             set_autostart,
             dismiss_mem_warn,
             open_main_window,
+            set_below,
             supports_transparency,
             desktop_background,
             shortcuts::open_settings

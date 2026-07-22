@@ -189,6 +189,17 @@ pub struct AppConfig {
     /// so the two sides read as one congruent layout.
     #[serde(default)]
     pub companion_match_heights: bool,
+    /// Companion mode: frosted-glass panes behind the hero and health sections — a
+    /// blurred slice of the desktop wallpaper under a translucent tint, while the
+    /// surrounding sky stays clear. An alternative to the solid panels; the two are
+    /// mutually exclusive (a panel is clear, solid, or frosted).
+    #[serde(default)]
+    pub companion_frosted_panels: bool,
+    /// Companion mode: replace the bottom attention CARDS with a slim scrolling
+    /// ticker — the same messages, condensed into a less-intrusive bar colored by
+    /// the worst severity. Off by default (cards).
+    #[serde(default)]
+    pub companion_alert_ticker: bool,
 }
 
 fn default_companion_bg_opacity() -> f64 {
@@ -227,6 +238,8 @@ impl Default for AppConfig {
             companion_solid_hero: false,
             companion_solid_health: false,
             companion_match_heights: false,
+            companion_frosted_panels: false,
+            companion_alert_ticker: false,
         }
     }
 }
@@ -373,6 +386,34 @@ mod tests {
         let back: AppConfig = serde_json::from_str(&s).unwrap();
         assert!(back.companion_solid_hero);
         assert!(back.companion_solid_health);
+    }
+
+    #[test]
+    fn companion_frosted_default_off_and_round_trip() {
+        // Off by default, absent from old configs, and survive a save/load cycle.
+        let c = AppConfig::default();
+        assert!(!c.companion_frosted_panels);
+        let old: AppConfig = serde_json::from_str(r#"{"zip":"90210"}"#).unwrap();
+        assert!(!old.companion_frosted_panels);
+        let mut c = AppConfig::default();
+        c.companion_frosted_panels = true;
+        let s = serde_json::to_string(&c).unwrap();
+        let back: AppConfig = serde_json::from_str(&s).unwrap();
+        assert!(back.companion_frosted_panels);
+    }
+
+    #[test]
+    fn companion_alert_ticker_default_off_and_round_trip() {
+        // Off by default (cards), absent from old configs, survives a save/load cycle.
+        let c = AppConfig::default();
+        assert!(!c.companion_alert_ticker);
+        let old: AppConfig = serde_json::from_str(r#"{"zip":"90210"}"#).unwrap();
+        assert!(!old.companion_alert_ticker);
+        let mut c = AppConfig::default();
+        c.companion_alert_ticker = true;
+        let s = serde_json::to_string(&c).unwrap();
+        let back: AppConfig = serde_json::from_str(&s).unwrap();
+        assert!(back.companion_alert_ticker);
     }
 
     #[test]

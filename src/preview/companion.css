@@ -189,6 +189,46 @@ body.companion[data-sky="night"]::before {
   align-self: center;
 }
 
+/* Frosted-glass panels (About → General): the hero and health card become panes of
+   glass — a blurred slice of the desktop wallpaper under a dark tint, a hairline
+   border, and a top highlight for the glass edge. backdrop-filter can't blur the
+   real desktop composited behind a transparent window (there's nothing in-page to
+   sample), so the glass blurs the in-page wallpaper copy (--comp-wall, set by
+   companion.js) instead; background-attachment: fixed sizes that copy to the
+   viewport so each pane samples roughly the wallpaper under its own footprint.
+   With no wallpaper available the tint alone remains — still readable, just less
+   glassy. Frosted and solid are mutually exclusive (companion.js/info.js never set
+   both), so no override guard is needed here. */
+.comp-hero.comp-frost,
+.comp-health.comp-frost {
+  position: relative;
+  isolation: isolate; /* keep the z-index:-1 glass layer inside the panel */
+  overflow: hidden; /* clip the blur bleed to the rounded corners */
+  background: rgba(11, 15, 26, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 12px 36px rgba(0, 0, 0, 0.28);
+}
+.comp-hero.comp-frost {
+  /* Same footprint the solid option gives the hero. */
+  border-radius: 22px;
+  padding: 1.2rem 1.5rem;
+  align-self: center;
+}
+.comp-hero.comp-frost::before,
+.comp-health.comp-frost::before {
+  content: "";
+  position: absolute;
+  inset: -40px; /* bleed past the edges so the blur never fades to transparent */
+  z-index: -1;
+  background-image: var(--comp-wall, none);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  filter: blur(22px) saturate(1.15);
+}
+
 /* ---- Right column: health card + the docked controls gear ---- */
 .comp-side {
   display: flex;
@@ -319,15 +359,20 @@ body.companion .comp-side .scale-control {
   max-height: 12rem;
   margin-top: 1rem;
 }
+/* Attention cards are always OPAQUE: when the panel is asking mom to do something,
+   the message must never fight a desktop showing through a clear sky. The solid
+   tile color + a soft shadow lift the card off whatever is behind it. */
 .comp-card {
   flex: 1 1 20rem;
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--tile);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-left: 5px solid var(--warn);
   border-radius: 18px;
   padding: 1rem 1.2rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   animation: comp-card-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .comp-card.bad {
@@ -349,6 +394,66 @@ body.companion .comp-side .scale-control {
   flex: none;
 }
 
+/* ---- Alert ticker: a slim, less-intrusive alternative to the cards (About →
+   General). Both renderings are built into .comp-attention; the container's
+   .is-ticker class decides which one shows, so the option toggles live. ---- */
+.comp-attention.is-ticker .comp-card {
+  display: none; /* ticker mode: cards are still in the DOM but hidden */
+}
+.comp-attention:not(.is-ticker) .comp-ticker {
+  display: none; /* card mode: the ticker is still in the DOM but hidden */
+}
+/* The bar: full-width, slim, a single clipped line. Severity color (warn = yellow,
+   bad = red) reuses the theme vars as a left accent + tinted separators, so it reads
+   at a glance without the visual weight of a card. */
+.comp-ticker {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 4px solid var(--warn);
+  padding: 0.55rem 0.9rem;
+  font-size: 1.02rem;
+  line-height: 1.35;
+}
+.comp-ticker.bad {
+  border-left-color: var(--bad);
+}
+/* One nowrap line that enters from the right edge and scrolls fully off the left,
+   then repeats — robust for any message length (padding-left is a % of the bar,
+   the translate is a % of the track's own width). Deliberately slow, and pauses on
+   hover/focus so it can always be read. */
+.comp-ticker-track {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  will-change: transform;
+  animation: comp-ticker-scroll 26s linear infinite;
+}
+.comp-ticker:hover .comp-ticker-track,
+.comp-ticker:focus-within .comp-ticker-track {
+  animation-play-state: paused;
+}
+@keyframes comp-ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+.comp-ticker-msg {
+  color: var(--ink);
+}
+.comp-ticker-sep {
+  margin: 0 0.9rem;
+  color: var(--warn);
+}
+.comp-ticker.bad .comp-ticker-sep {
+  color: var(--bad);
+}
+
 @media (prefers-reduced-motion: reduce) {
   body.companion::before {
     transition: none;
@@ -361,5 +466,13 @@ body.companion .comp-side .scale-control {
   }
   .comp-peek {
     animation: none;
+  }
+  /* A moving marquee is hard to read: stop the scroll and lay the message(s) out as
+     a static, wrapping line instead — still the full text, just legible and still. */
+  .comp-ticker-track {
+    animation: none;
+    padding-left: 0;
+    white-space: normal;
+    transform: none;
   }
 }

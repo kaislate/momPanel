@@ -96,6 +96,25 @@ mod patch_tests {
     }
 
     #[test]
+    fn companion_frosted_patch_applies() {
+        let mut c = AppConfig::default();
+        apply_patch(&mut c, &serde_json::json!({ "companion_frosted_panels": true })).unwrap();
+        assert!(c.companion_frosted_panels);
+        // And back off again — the merge honors explicit false too.
+        apply_patch(&mut c, &serde_json::json!({ "companion_frosted_panels": false })).unwrap();
+        assert!(!c.companion_frosted_panels);
+    }
+
+    #[test]
+    fn companion_alert_ticker_patch_applies() {
+        let mut c = AppConfig::default();
+        apply_patch(&mut c, &serde_json::json!({ "companion_alert_ticker": true })).unwrap();
+        assert!(c.companion_alert_ticker);
+        apply_patch(&mut c, &serde_json::json!({ "companion_alert_ticker": false })).unwrap();
+        assert!(!c.companion_alert_ticker);
+    }
+
+    #[test]
     fn companion_match_heights_patch_applies() {
         let mut c = AppConfig::default();
         apply_patch(&mut c, &serde_json::json!({ "companion_match_heights": true })).unwrap();
@@ -134,12 +153,34 @@ fn dismiss_mem_warn(app: tauri::AppHandle) {
 #[tauri::command]
 fn open_main_window(app: tauri::AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
+        // A memory escalation must surface the panel even in companion mode, where it's
+        // pinned below other windows (set_below). Release the below-pin first, otherwise
+        // on X11 the persistent _NET_WM_STATE_BELOW keeps the panel behind an occluding
+        // window and set_focus() can't raise it. The next companion (re)load re-pins it.
+        let _ = w.set_always_on_bottom(false);
         let _ = w.show();
         let _ = w.unminimize();
         let _ = w.set_focus();
     }
     if let Some(m) = app.get_webview_window("memwarn") {
         let _ = m.hide();
+    }
+}
+
+/// Pin the main window below all other windows (companion mode) or release it (classic).
+/// LINUX: disabled. On GNOME/Mutter, `_NET_WM_STATE_BELOW` makes the window
+/// non-interactive — it stops receiving clicks AND can't be moved with Super+drag —
+/// and it's a no-op on Wayland regardless. So on Linux the companion window stays a
+/// normal, interactive window (verified on Zorin: keep-below killed all input). Still
+/// effective on Windows/macOS, where keep-below behaves correctly. The frontend calls
+/// this on mode boot; a webview reload keeps the native window, so classic MUST clear
+/// the flag a prior companion session set (on the platforms where it applies).
+#[tauri::command]
+#[cfg_attr(target_os = "linux", allow(unused_variables))]
+fn set_below(app: tauri::AppHandle, below: bool) {
+    #[cfg(not(target_os = "linux"))]
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.set_always_on_bottom(below);
     }
 }
 
@@ -159,28 +200,82 @@ fn unavail() -> serde_json::Value {
     serde_json::json!({ "state": "unavailable" })
 }
 
-/// Whether this platform supports a real transparent window. False on Linux again
-/// as of 0.6.4: 0.6.2 blamed the ghost/stale frames on the legacy render path and
-/// re-enabled real transparency, but the field report from the target Zorin 18.1
-/// machine (Wayland, WebKitGTK 2.52) shows the MODERN path ghosts too — closed
-/// About panels and notification animation trails stay visible through transparent
-/// regions (upstream: tauri-apps/tauri#14924). Linux keeps an opaque window and
-/// simulates see-through with the wallpaper backdrop (desktop_background()); the
-/// webview input, unlike 0.6.1's diagnosis, was never the problem — see hostexec.rs.
+/// Which display backend the Linux build should use. Decided once at startup.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[derive(PartialEq, Eq, Debug)]
+enum LinuxBackend {
+    X11,
+    Wayland,
+}
+
+/// Pure backend decision (unit-tested on every platform). Prefer X11/Xwayland so we
+/// get real window alpha + stacking control, but only when a display is actually
+/// reachable — forcing GDK_BACKEND=x11 with no X server makes GTK fail to open a
+/// display and the app won't start. `MOMPANEL_FORCE_WAYLAND` is the escape hatch.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn choose_linux_backend(force_wayland: bool, have_display: bool) -> LinuxBackend {
+    if !force_wayland && have_display {
+        LinuxBackend::X11
+    } else {
+        LinuxBackend::Wayland
+    }
+}
+
+/// Whether the Linux build ended up on X11/Xwayland. Set once in `run()`; read by
+/// `supports_transparency()` and the main-window builder. Never set on non-Linux.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+static ON_X11: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
+/// Whether the OS window is really transparent. Always true on Win/mac. On Linux it
+/// depends on the runtime backend: WebKitGTK ghosts window alpha under Wayland
+/// (tauri#14924), so we only run transparent when we routed onto X11/Xwayland; the
+/// Wayland fallback keeps an opaque window and simulates see-through with the
+/// wallpaper backdrop (see background.rs). Drives both the window builder and the
+/// frontend's real-vs-simulated backdrop choice (companion.js).
+fn window_should_be_transparent() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        ON_X11.get().copied().unwrap_or(false)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        true
+    }
+}
+
 #[tauri::command]
 fn supports_transparency() -> bool {
-    cfg!(not(target_os = "linux"))
+    window_should_be_transparent()
 }
 
 #[cfg(test)]
 mod transparency_tests {
     use super::supports_transparency;
 
+    // Win/mac always have a real transparent window. On Linux transparency is a
+    // runtime call (true only on X11); ON_X11 is unset under `cargo test`, so the
+    // Linux build reports opaque here — the honest default when no backend was chosen.
     #[test]
-    fn linux_is_opaque_other_platforms_transparent() {
-        assert_eq!(supports_transparency(), cfg!(not(target_os = "linux")));
+    fn non_linux_is_transparent_linux_defaults_opaque() {
+        #[cfg(not(target_os = "linux"))]
+        assert!(supports_transparency());
         #[cfg(target_os = "linux")]
         assert!(!supports_transparency());
+    }
+}
+
+#[cfg(test)]
+mod backend_tests {
+    use super::{choose_linux_backend, LinuxBackend};
+
+    #[test]
+    fn x11_only_when_display_present_and_wayland_not_forced() {
+        assert_eq!(choose_linux_backend(false, true), LinuxBackend::X11);
+        // No X server/Xwayland reachable -> must stay Wayland (else GTK can't open a display).
+        assert_eq!(choose_linux_backend(false, false), LinuxBackend::Wayland);
+        // Explicit escape hatch always wins, even with a display available.
+        assert_eq!(choose_linux_backend(true, true), LinuxBackend::Wayland);
+        assert_eq!(choose_linux_backend(true, false), LinuxBackend::Wayland);
     }
 }
 
@@ -369,6 +464,12 @@ fn apply_patch(current: &mut AppConfig, cfg: &serde_json::Value) -> Result<(), S
     if let Some(b) = cfg.get("companion_match_heights").and_then(|v| v.as_bool()) {
         current.companion_match_heights = b;
     }
+    if let Some(b) = cfg.get("companion_frosted_panels").and_then(|v| v.as_bool()) {
+        current.companion_frosted_panels = b;
+    }
+    if let Some(b) = cfg.get("companion_alert_ticker").and_then(|v| v.as_bool()) {
+        current.companion_alert_ticker = b;
+    }
     if let Some(o) = cfg.get("companion_bg_opacity").and_then(|v| v.as_f64()) {
         // Allow a fully-invisible sky (0.0): the frontend now draws a real backdrop
         // behind it — the actual desktop through a transparent window on Win/mac, or a
@@ -499,6 +600,21 @@ pub fn run() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
 
+    // Prefer X11/Xwayland on Linux: WebKitGTK ghosts window alpha under Wayland
+    // (tauri#14924) and Wayland forbids client-controlled stacking. Xwayland runs
+    // inside the user's normal Wayland session, so this needs no Xorg login. Falls
+    // back to Wayland (opaque + wallpaper sim) if forced or if no display is reachable.
+    #[cfg(target_os = "linux")]
+    {
+        let force_wayland = std::env::var_os("MOMPANEL_FORCE_WAYLAND").is_some();
+        let have_display = std::env::var_os("DISPLAY").is_some();
+        let on_x11 = choose_linux_backend(force_wayland, have_display) == LinuxBackend::X11;
+        if on_x11 {
+            std::env::set_var("GDK_BACKEND", "x11");
+        }
+        let _ = ON_X11.set(on_x11);
+    }
+
     tauri::Builder::default()
         // Registered first so a second launch is intercepted before any window work.
         // This app autostarts on login, so a manual re-launch must surface the running
@@ -518,6 +634,23 @@ pub fn run() {
             None,
         ))
         .setup(|app| {
+            // The main window is built here (not in tauri.conf.json) so its
+            // transparency can be a RUNTIME decision: transparent on Win/mac and on
+            // Linux-X11, opaque on the Linux/Wayland fallback (WebKitGTK alpha ghosts
+            // there — tauri#14924). Mirrors the memwarn builder below. `visible(false)`;
+            // the restore block further down positions it and then shows it.
+            WebviewWindowBuilder::new(app.handle(), "main", WebviewUrl::App("index.html".into()))
+                .title("momPanel")
+                .inner_size(1100.0, 760.0)
+                .resizable(true)
+                .decorations(false)
+                .center()
+                .visible(false)
+                .disable_drag_drop_handler()
+                .shadow(false)
+                .transparent(window_should_be_transparent())
+                .build()?;
+
             use tauri_plugin_autostart::ManagerExt;
             // Enable autostart ONCE on first run; after that respect the user's choice
             // (via the "Start at login" toggle) instead of forcing it on every launch.
@@ -622,6 +755,7 @@ pub fn run() {
             set_autostart,
             dismiss_mem_warn,
             open_main_window,
+            set_below,
             supports_transparency,
             desktop_background,
             shortcuts::open_settings

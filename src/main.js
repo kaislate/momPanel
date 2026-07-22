@@ -9,7 +9,7 @@ import { registerAll } from "./tiles/index.js";
 import { listen } from "./bridge.js";
 import { initChrome, mountControls, setPanelBase } from "./scale.js";
 import { showHelp } from "./help.js";
-import { appVersion, getConfig, setConfig } from "./api.js";
+import { appVersion, getConfig, setConfig, setBelow } from "./api.js";
 import { showWhatsNew } from "./whatsnew.js";
 
 // Show the "what's new" note once after the app updates to a new version. Skipped on
@@ -40,6 +40,8 @@ async function boot() {
   // exception: big time/weather, one health card). Toggled in the About panel;
   // switching reloads the window, so exactly one mode ever boots.
   if (cfg.experimental_ui) {
+    // Companion mode is a desktop-embedded ambient panel: it sits below other apps.
+    setBelow(true);
     const { initCompanion } = await import("./preview/companion.js");
     await initCompanion();
     mountControls(chrome);
@@ -52,6 +54,8 @@ async function boot() {
     return;
   }
 
+  // Classic mode is a normal window; clear any keep-below a prior companion session set.
+  setBelow(false);
   await registerAll(registerTile);
   mountTiles();
   mountControls(chrome);

@@ -460,7 +460,10 @@ function renderHealth() {
     return;
   }
 
-  box.innerHTML = attns
+  // Two renderings of the same concerns live side by side; CSS shows exactly one
+  // based on the container's .is-ticker class (About → General), so switching modes
+  // is a live class toggle — no rebuild — consistent with the panel-look options.
+  const cards = attns
     .map(
       (a) =>
         `<div class="comp-card ${a.level}" data-card="${a.id}">` +
@@ -471,6 +474,19 @@ function renderHealth() {
         `</div>`
     )
     .join("");
+  // Compact ticker: one slim line carrying the same message text(s), joined by a dot
+  // and colored by the worst severity. A single copy (no seamless-loop duplicate) so
+  // a screen reader reads each message once; the CSS marquee re-enters from the right
+  // each pass, and prefers-reduced-motion degrades it to a static, wrapped readout.
+  const worstAttn = attns.some((a) => a.level === "bad") ? "bad" : "warn";
+  const ticker =
+    `<div class="comp-ticker ${worstAttn}" role="status" aria-live="polite">` +
+    `<div class="comp-ticker-track">` +
+    attns
+      .map((a) => `<span class="comp-ticker-msg">${a.text}</span>`)
+      .join(`<span class="comp-ticker-sep" aria-hidden="true">&bull;</span>`) +
+    `</div></div>`;
+  box.innerHTML = cards + ticker;
   box.querySelectorAll("[data-target]").forEach((btn) =>
     btn.addEventListener("click", () => openSettings(btn.dataset.target))
   );
@@ -573,6 +589,16 @@ export async function initCompanion() {
   // User-tunable sky opacity (About → General), down to fully invisible.
   let alpha = Math.min(1, Math.max(0, Number(cfg.companion_bg_opacity ?? 1)));
 
+  // The desktop wallpaper, fetched on every platform: a blurred copy of it powers
+  // the frosted-glass panels (CSS var consumed by .comp-frost — backdrop-filter
+  // can't blur the real desktop composited behind a transparent window, so the
+  // glass blurs this in-page copy instead). Loaded even with the option off so the
+  // About toggle can frost live.
+  const wall = await desktopBackground();
+  if (wall) {
+    document.documentElement.style.setProperty("--comp-wall", `url(${wall})`);
+  }
+
   // Real window transparency ghosts stale frames on Linux/WebKitGTK, so there the
   // window stays opaque and "clear" skies reveal a drawn copy of the desktop
   // wallpaper instead — the desktop, never other windows. body.dataset.backdrop
@@ -580,8 +606,6 @@ export async function initCompanion() {
   // About panel's live opacity control can refuse to reveal a blank canvas.
   let backdrop = "real";
   if (!(await supportsTransparency())) {
-    // Load the wallpaper even at "Solid" so the About dropdown can reveal it live.
-    const wall = await desktopBackground();
     if (wall) {
       const desk = document.createElement("div");
       desk.className = "comp-desktop";
@@ -599,9 +623,17 @@ export async function initCompanion() {
   document.documentElement.style.setProperty("--comp-bg-alpha", String(alpha));
 
   buildSkeleton(document.getElementById("grid"));
-  // Solid readability panels behind the hero and/or health card (About → General).
-  document.querySelector(".comp-hero")?.classList.toggle("comp-solid", !!cfg.companion_solid_hero);
-  document.querySelector(".comp-health")?.classList.toggle("comp-solid", !!cfg.companion_solid_health);
+  // Panel backing (About → General): each panel is clear, solid, or frosted — the
+  // solid and frosted looks are mutually exclusive, so frosted (a whole-panel glass
+  // treatment) wins when on and the per-panel solid backing applies otherwise. This
+  // reconciliation also normalizes any stale config that stored both.
+  const frost = !!cfg.companion_frosted_panels;
+  document.querySelector(".comp-hero")?.classList.toggle("comp-frost", frost);
+  document.querySelector(".comp-health")?.classList.toggle("comp-frost", frost);
+  document.querySelector(".comp-hero")?.classList.toggle("comp-solid", !frost && !!cfg.companion_solid_hero);
+  document.querySelector(".comp-health")?.classList.toggle("comp-solid", !frost && !!cfg.companion_solid_health);
+  // Attention style: scrolling ticker vs. the popup cards (About → General).
+  state.els.attention.classList.toggle("is-ticker", !!cfg.companion_alert_ticker);
   // Same-height panels: the health card stretches to the hero section's height.
   document.querySelector(".comp")?.classList.toggle("comp-match", !!cfg.companion_match_heights);
   initPeek();

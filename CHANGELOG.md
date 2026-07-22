@@ -2,6 +2,42 @@
 
 All notable changes to momPanel. Dates are YYYY-MM-DD.
 
+## 0.6.6 — 2026-07-22
+
+### Added
+- **Linux: real transparent companion window on X11/Xwayland.** momPanel now
+  routes onto X11 when a display is available (through Xwayland, inside the normal
+  Wayland session — no Xorg login needed), so companion mode is genuinely
+  see-through to the live desktop instead of a simulated wallpaper backdrop.
+  Diagnosed and verified live on the target (Zorin, GNOME 46). Set
+  `MOMPANEL_FORCE_WAYLAND=1` to opt out and keep the opaque + wallpaper-sim
+  behaviour. As a bonus, the remembered window position now takes effect on Linux
+  (Wayland ignored client-side positioning). Windows/macOS keep their existing
+  real transparent window.
+- **Companion: frosted-glass panels.** Each panel's background can now be Clear,
+  Solid, or Frosted glass (a blurred copy of the wallpaper). About → General; the
+  three are mutually exclusive.
+- **Companion: scrolling alert ticker (opt-in).** An alternative to the pop-up
+  attention cards — a slim, severity-coloured ticker (yellow for a warning, red
+  for a problem) that gently scrolls the same message and pauses on hover. Smaller
+  and less intrusive; lays out static and wrapping under reduced-motion. About →
+  General.
+
+### Fixed
+- **Companion keep-below made the window uninteractive on GNOME.** Pinning the
+  panel below other windows used `_NET_WM_STATE_BELOW`, which on Mutter stops the
+  window receiving clicks and blocks Super+drag moves. Keep-below is now disabled
+  on Linux (it was a no-op on Wayland anyway); companion is a normal, interactive
+  window there. Still applies on Windows/macOS. A memory-escalation "Open" also
+  releases the pin so the panel can surface over an occluding window.
+- **Companion attention card is now opaque** so a warning (e.g. a printer alert)
+  stays readable over a see-through sky.
+
+### Changed
+- The main window is created in code rather than `tauri.conf.json`, so its
+  transparency can be decided at runtime per platform/session. The Linux
+  `tauri.linux.conf.json` override is retired.
+
 ## 0.6.5 — 2026-07-16
 
 ### Fixed

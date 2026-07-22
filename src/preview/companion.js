@@ -460,7 +460,10 @@ function renderHealth() {
     return;
   }
 
-  box.innerHTML = attns
+  // Two renderings of the same concerns live side by side; CSS shows exactly one
+  // based on the container's .is-ticker class (About → General), so switching modes
+  // is a live class toggle — no rebuild — consistent with the panel-look options.
+  const cards = attns
     .map(
       (a) =>
         `<div class="comp-card ${a.level}" data-card="${a.id}">` +
@@ -471,6 +474,19 @@ function renderHealth() {
         `</div>`
     )
     .join("");
+  // Compact ticker: one slim line carrying the same message text(s), joined by a dot
+  // and colored by the worst severity. A single copy (no seamless-loop duplicate) so
+  // a screen reader reads each message once; the CSS marquee re-enters from the right
+  // each pass, and prefers-reduced-motion degrades it to a static, wrapped readout.
+  const worstAttn = attns.some((a) => a.level === "bad") ? "bad" : "warn";
+  const ticker =
+    `<div class="comp-ticker ${worstAttn}" role="status" aria-live="polite">` +
+    `<div class="comp-ticker-track">` +
+    attns
+      .map((a) => `<span class="comp-ticker-msg">${a.text}</span>`)
+      .join(`<span class="comp-ticker-sep" aria-hidden="true">&bull;</span>`) +
+    `</div></div>`;
+  box.innerHTML = cards + ticker;
   box.querySelectorAll("[data-target]").forEach((btn) =>
     btn.addEventListener("click", () => openSettings(btn.dataset.target))
   );
@@ -616,6 +632,8 @@ export async function initCompanion() {
   document.querySelector(".comp-health")?.classList.toggle("comp-frost", frost);
   document.querySelector(".comp-hero")?.classList.toggle("comp-solid", !frost && !!cfg.companion_solid_hero);
   document.querySelector(".comp-health")?.classList.toggle("comp-solid", !frost && !!cfg.companion_solid_health);
+  // Attention style: scrolling ticker vs. the popup cards (About → General).
+  state.els.attention.classList.toggle("is-ticker", !!cfg.companion_alert_ticker);
   // Same-height panels: the health card stretches to the hero section's height.
   document.querySelector(".comp")?.classList.toggle("comp-match", !!cfg.companion_match_heights);
   initPeek();

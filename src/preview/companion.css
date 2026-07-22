@@ -394,6 +394,66 @@ body.companion .comp-side .scale-control {
   flex: none;
 }
 
+/* ---- Alert ticker: a slim, less-intrusive alternative to the cards (About →
+   General). Both renderings are built into .comp-attention; the container's
+   .is-ticker class decides which one shows, so the option toggles live. ---- */
+.comp-attention.is-ticker .comp-card {
+  display: none; /* ticker mode: cards are still in the DOM but hidden */
+}
+.comp-attention:not(.is-ticker) .comp-ticker {
+  display: none; /* card mode: the ticker is still in the DOM but hidden */
+}
+/* The bar: full-width, slim, a single clipped line. Severity color (warn = yellow,
+   bad = red) reuses the theme vars as a left accent + tinted separators, so it reads
+   at a glance without the visual weight of a card. */
+.comp-ticker {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 4px solid var(--warn);
+  padding: 0.55rem 0.9rem;
+  font-size: 1.02rem;
+  line-height: 1.35;
+}
+.comp-ticker.bad {
+  border-left-color: var(--bad);
+}
+/* One nowrap line that enters from the right edge and scrolls fully off the left,
+   then repeats — robust for any message length (padding-left is a % of the bar,
+   the translate is a % of the track's own width). Deliberately slow, and pauses on
+   hover/focus so it can always be read. */
+.comp-ticker-track {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  will-change: transform;
+  animation: comp-ticker-scroll 26s linear infinite;
+}
+.comp-ticker:hover .comp-ticker-track,
+.comp-ticker:focus-within .comp-ticker-track {
+  animation-play-state: paused;
+}
+@keyframes comp-ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+.comp-ticker-msg {
+  color: var(--ink);
+}
+.comp-ticker-sep {
+  margin: 0 0.9rem;
+  color: var(--warn);
+}
+.comp-ticker.bad .comp-ticker-sep {
+  color: var(--bad);
+}
+
 @media (prefers-reduced-motion: reduce) {
   body.companion::before {
     transition: none;
@@ -406,5 +466,13 @@ body.companion .comp-side .scale-control {
   }
   .comp-peek {
     animation: none;
+  }
+  /* A moving marquee is hard to read: stop the scroll and lay the message(s) out as
+     a static, wrapping line instead — still the full text, just legible and still. */
+  .comp-ticker-track {
+    animation: none;
+    padding-left: 0;
+    white-space: normal;
+    transform: none;
   }
 }

@@ -107,6 +107,13 @@ export async function openInfo() {
     // alternative look to the solid panels, so turning it on clears them and vice
     // versa. Applied live, no refresh needed.
     check("data-frostpanels", cfg.companion_frosted_panels, "Frosted glass panels") +
+    // Alerts as a slim scrolling ticker instead of the popup cards. Applied live.
+    check(
+      "data-alertticker",
+      cfg.companion_alert_ticker,
+      "Show alerts as a scrolling ticker",
+      "A slimmer bar instead of the popup cards."
+    ) +
     check("data-matchheights", cfg.companion_match_heights, "Make both sections the same height") +
     `</section>` +
     // --- Column 2: Memory alerts ---
@@ -270,6 +277,12 @@ export async function openInfo() {
       companion_frosted_panels: on,
       ...(on ? { companion_solid_hero: false, companion_solid_health: false } : {}),
     });
+  });
+  // Scrolling ticker vs. popup cards: persist and apply live (both renderings already
+  // sit in .comp-attention; the class just decides which one shows).
+  root.querySelector("[data-alertticker]").addEventListener("change", (e) => {
+    setConfig({ companion_alert_ticker: e.target.checked });
+    document.querySelector(".comp-attention")?.classList.toggle("is-ticker", e.target.checked);
   });
   root.querySelector("[data-matchheights]").addEventListener("change", (e) => {
     setConfig({ companion_match_heights: e.target.checked });

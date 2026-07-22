@@ -98,18 +98,11 @@ mod patch_tests {
     #[test]
     fn companion_frosted_patch_applies() {
         let mut c = AppConfig::default();
-        let patch = serde_json::json!({
-            "companion_frosted_panels": true,
-            "companion_frosted_bg": true
-        });
-        apply_patch(&mut c, &patch).unwrap();
+        apply_patch(&mut c, &serde_json::json!({ "companion_frosted_panels": true })).unwrap();
         assert!(c.companion_frosted_panels);
-        assert!(c.companion_frosted_bg);
         // And back off again — the merge honors explicit false too.
-        let patch = serde_json::json!({ "companion_frosted_bg": false });
-        apply_patch(&mut c, &patch).unwrap();
-        assert!(c.companion_frosted_panels); // untouched key preserved
-        assert!(!c.companion_frosted_bg);
+        apply_patch(&mut c, &serde_json::json!({ "companion_frosted_panels": false })).unwrap();
+        assert!(!c.companion_frosted_panels);
     }
 
     #[test]
@@ -464,9 +457,6 @@ fn apply_patch(current: &mut AppConfig, cfg: &serde_json::Value) -> Result<(), S
     }
     if let Some(b) = cfg.get("companion_frosted_panels").and_then(|v| v.as_bool()) {
         current.companion_frosted_panels = b;
-    }
-    if let Some(b) = cfg.get("companion_frosted_bg").and_then(|v| v.as_bool()) {
-        current.companion_frosted_bg = b;
     }
     if let Some(o) = cfg.get("companion_bg_opacity").and_then(|v| v.as_f64()) {
         // Allow a fully-invisible sky (0.0): the frontend now draws a real backdrop

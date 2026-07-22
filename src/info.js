@@ -103,10 +103,10 @@ export async function openInfo() {
     // through a clear sky. Applied live — no refresh needed.
     check("data-solidhero", cfg.companion_solid_hero, "Solid panel behind time &amp; weather") +
     check("data-solidhealth", cfg.companion_solid_health, "Solid panel behind &ldquo;All is well&rdquo;") +
-    // Frosted glass: a blurred pane of the wallpaper behind the panels and/or as
-    // the whole background. Applied live — no refresh needed.
+    // Frosted glass: a blurred pane of the wallpaper behind both panels — an
+    // alternative look to the solid panels, so turning it on clears them and vice
+    // versa. Applied live, no refresh needed.
     check("data-frostpanels", cfg.companion_frosted_panels, "Frosted glass panels") +
-    check("data-frostbg", cfg.companion_frosted_bg, "Frosted glass background") +
     check("data-matchheights", cfg.companion_match_heights, "Make both sections the same height") +
     `</section>` +
     // --- Column 2: Memory alerts ---
@@ -228,26 +228,48 @@ export async function openInfo() {
     location.reload();
   });
 
-  // Solid readability panels: persist and apply live to the companion DOM behind
-  // this overlay (querySelector finds nothing in the classic grid — harmless).
-  root.querySelector("[data-solidhero]").addEventListener("change", (e) => {
-    setConfig({ companion_solid_hero: e.target.checked });
-    document.querySelector(".comp-hero")?.classList.toggle("comp-solid", e.target.checked);
+  // Solid and frosted panels are mutually exclusive looks (a panel is clear, solid,
+  // or frosted): turning one on clears the other so they never fight. Persist and
+  // apply live to the companion DOM behind this overlay (querySelector finds nothing
+  // in the classic grid — harmless).
+  const frostChk = root.querySelector("[data-frostpanels]");
+  const solidHeroChk = root.querySelector("[data-solidhero]");
+  const solidHealthChk = root.querySelector("[data-solidhealth]");
+  // Drop the frosted look (used when a solid panel is switched on).
+  const clearFrost = () => {
+    frostChk.checked = false;
+    document.querySelector(".comp-hero")?.classList.remove("comp-frost");
+    document.querySelector(".comp-health")?.classList.remove("comp-frost");
+  };
+  solidHeroChk.addEventListener("change", (e) => {
+    const on = e.target.checked;
+    document.querySelector(".comp-hero")?.classList.toggle("comp-solid", on);
+    if (on) clearFrost();
+    setConfig({ companion_solid_hero: on, ...(on ? { companion_frosted_panels: false } : {}) });
   });
-  root.querySelector("[data-solidhealth]").addEventListener("change", (e) => {
-    setConfig({ companion_solid_health: e.target.checked });
-    document.querySelector(".comp-health")?.classList.toggle("comp-solid", e.target.checked);
+  solidHealthChk.addEventListener("change", (e) => {
+    const on = e.target.checked;
+    document.querySelector(".comp-health")?.classList.toggle("comp-solid", on);
+    if (on) clearFrost();
+    setConfig({ companion_solid_health: on, ...(on ? { companion_frosted_panels: false } : {}) });
   });
-  // Frosted glass: persist and apply live (companion.js already exposed the
-  // wallpaper as --comp-wall; in the classic grid these classes style nothing).
-  root.querySelector("[data-frostpanels]").addEventListener("change", (e) => {
-    setConfig({ companion_frosted_panels: e.target.checked });
-    document.querySelector(".comp-hero")?.classList.toggle("comp-frost", e.target.checked);
-    document.querySelector(".comp-health")?.classList.toggle("comp-frost", e.target.checked);
-  });
-  root.querySelector("[data-frostbg]").addEventListener("change", (e) => {
-    setConfig({ companion_frosted_bg: e.target.checked });
-    document.body.classList.toggle("comp-frost-bg", e.target.checked);
+  // Frosted glass (companion.js already exposed the wallpaper as --comp-wall). Turning
+  // it on clears both solid panels; the panels' solid preference is dropped so a later
+  // frost-off leaves them clear rather than silently re-solid.
+  frostChk.addEventListener("change", (e) => {
+    const on = e.target.checked;
+    document.querySelector(".comp-hero")?.classList.toggle("comp-frost", on);
+    document.querySelector(".comp-health")?.classList.toggle("comp-frost", on);
+    if (on) {
+      solidHeroChk.checked = false;
+      solidHealthChk.checked = false;
+      document.querySelector(".comp-hero")?.classList.remove("comp-solid");
+      document.querySelector(".comp-health")?.classList.remove("comp-solid");
+    }
+    setConfig({
+      companion_frosted_panels: on,
+      ...(on ? { companion_solid_hero: false, companion_solid_health: false } : {}),
+    });
   });
   root.querySelector("[data-matchheights]").addEventListener("change", (e) => {
     setConfig({ companion_match_heights: e.target.checked });

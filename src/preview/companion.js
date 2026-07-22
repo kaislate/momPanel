@@ -573,11 +573,11 @@ export async function initCompanion() {
   // User-tunable sky opacity (About → General), down to fully invisible.
   let alpha = Math.min(1, Math.max(0, Number(cfg.companion_bg_opacity ?? 1)));
 
-  // The desktop wallpaper, fetched on every platform: blurred copies of it power
-  // the frosted-glass options (CSS var consumed by .comp-frost / .comp-frost-bg —
-  // backdrop-filter can't blur the real desktop composited behind a transparent
-  // window, so the glass blurs this in-page copy instead). Loaded even with every
-  // option off so the About toggles can frost live.
+  // The desktop wallpaper, fetched on every platform: a blurred copy of it powers
+  // the frosted-glass panels (CSS var consumed by .comp-frost — backdrop-filter
+  // can't blur the real desktop composited behind a transparent window, so the
+  // glass blurs this in-page copy instead). Loaded even with the option off so the
+  // About toggle can frost live.
   const wall = await desktopBackground();
   if (wall) {
     document.documentElement.style.setProperty("--comp-wall", `url(${wall})`);
@@ -607,13 +607,15 @@ export async function initCompanion() {
   document.documentElement.style.setProperty("--comp-bg-alpha", String(alpha));
 
   buildSkeleton(document.getElementById("grid"));
-  // Solid readability panels behind the hero and/or health card (About → General).
-  document.querySelector(".comp-hero")?.classList.toggle("comp-solid", !!cfg.companion_solid_hero);
-  document.querySelector(".comp-health")?.classList.toggle("comp-solid", !!cfg.companion_solid_health);
-  // Frosted-glass panes behind both sections, and/or a frosted sky (About → General).
-  document.querySelector(".comp-hero")?.classList.toggle("comp-frost", !!cfg.companion_frosted_panels);
-  document.querySelector(".comp-health")?.classList.toggle("comp-frost", !!cfg.companion_frosted_panels);
-  document.body.classList.toggle("comp-frost-bg", !!cfg.companion_frosted_bg);
+  // Panel backing (About → General): each panel is clear, solid, or frosted — the
+  // solid and frosted looks are mutually exclusive, so frosted (a whole-panel glass
+  // treatment) wins when on and the per-panel solid backing applies otherwise. This
+  // reconciliation also normalizes any stale config that stored both.
+  const frost = !!cfg.companion_frosted_panels;
+  document.querySelector(".comp-hero")?.classList.toggle("comp-frost", frost);
+  document.querySelector(".comp-health")?.classList.toggle("comp-frost", frost);
+  document.querySelector(".comp-hero")?.classList.toggle("comp-solid", !frost && !!cfg.companion_solid_hero);
+  document.querySelector(".comp-health")?.classList.toggle("comp-solid", !frost && !!cfg.companion_solid_health);
   // Same-height panels: the health card stretches to the hero section's height.
   document.querySelector(".comp")?.classList.toggle("comp-match", !!cfg.companion_match_heights);
   initPeek();

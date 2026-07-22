@@ -197,9 +197,10 @@ body.companion[data-sky="night"]::before {
    companion.js) instead; background-attachment: fixed sizes that copy to the
    viewport so each pane samples roughly the wallpaper under its own footprint.
    With no wallpaper available the tint alone remains — still readable, just less
-   glassy. A solid panel wins over frost: opaque is the readability trump card. */
-.comp-hero.comp-frost:not(.comp-solid),
-.comp-health.comp-frost:not(.comp-solid) {
+   glassy. Frosted and solid are mutually exclusive (companion.js/info.js never set
+   both), so no override guard is needed here. */
+.comp-hero.comp-frost,
+.comp-health.comp-frost {
   position: relative;
   isolation: isolate; /* keep the z-index:-1 glass layer inside the panel */
   overflow: hidden; /* clip the blur bleed to the rounded corners */
@@ -210,13 +211,13 @@ body.companion[data-sky="night"]::before {
     0 12px 36px rgba(0, 0, 0, 0.28);
 }
 .comp-hero.comp-frost {
-  /* Same footprint the solid option gives the hero (no-op when both are on). */
+  /* Same footprint the solid option gives the hero. */
   border-radius: 22px;
   padding: 1.2rem 1.5rem;
   align-self: center;
 }
-.comp-hero.comp-frost:not(.comp-solid)::before,
-.comp-health.comp-frost:not(.comp-solid)::before {
+.comp-hero.comp-frost::before,
+.comp-health.comp-frost::before {
   content: "";
   position: absolute;
   inset: -40px; /* bleed past the edges so the blur never fades to transparent */
@@ -226,30 +227,6 @@ body.companion[data-sky="night"]::before {
   background-position: center;
   background-attachment: fixed;
   filter: blur(22px) saturate(1.15);
-}
-
-/* Frosted-glass background (About → General): the whole sky becomes one pane of
-   glass — the blurred wallpaper at partial opacity (where the window is truly
-   transparent the live desktop still breathes through the remaining ~15%), with
-   the time-of-day sky reduced to a translucent tint on top so the mood survives.
-   The About opacity slider keeps working: it now scales that tint. Skipped when
-   there is nothing behind the sky (data-backdrop="none") — thinning the sky there
-   would only reveal the webview's white canvas. */
-body.companion.comp-frost-bg:not([data-backdrop="none"])::after {
-  content: "";
-  position: fixed;
-  inset: -60px; /* bleed so the blur never fades to transparent at the edges */
-  /* -2 with .comp-desktop (generated content paints above it there), below the
-     z-index:-1 sky tint. */
-  z-index: -2;
-  background-image: var(--comp-wall, none);
-  background-size: cover;
-  background-position: center;
-  opacity: 0.85;
-  filter: blur(38px) saturate(1.1);
-}
-body.companion.comp-frost-bg:not([data-backdrop="none"])::before {
-  opacity: calc(var(--comp-bg-alpha, 1) * 0.45);
 }
 
 /* ---- Right column: health card + the docked controls gear ---- */
